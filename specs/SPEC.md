@@ -178,10 +178,115 @@ This describes the minimum set of API-visible workflows required to operate the 
 **Acceptance**:
 - Reprocess does not block and is auditable via `/runs/{id}`.
 
-#### Scoring Signals (MVP)
-- **Content signals**: arXiv category, title/abstract keywords, method novelty cues (e.g., “new benchmark”, “state-of-the-art”), presence of code or dataset.
-- **Attention signals**: GitHub stars velocity (for repos), cross-source mentions.
-- **Recency**: Recent items get a small boost but cannot dominate importance.
+#### Scoring Algorithm
+
+The scoring system uses a hybrid approach: rule-based for relevance, LLM-assisted for importance.
+
+##### 1. Relevance Score (0.0 - 1.0)
+
+**Question**: "Is this AI-related and in-scope?"
+
+**Method**: Rule-based (no LLM call)
+
+| Signal | Papers | Repos | Articles | Weight |
+|--------|--------|-------|----------|--------|
+| `category_match` | arXiv cs.AI/LG/CL/CV/RO, stat.ML | - | - | 0.4 |
+| `topic_match` | - | GitHub topics contain AI keywords | - | 0.4 |
+| `keyword_density` | Title/abstract keywords | README/description | Title/content | 0.3 |
+| `source_relevance` | arXiv = 1.0 | GitHub Trending AI = 1.0 | AI news = 1.0 | 0.3 |
+
+**AI Keywords**:
+```
+llm, gpt, transformer, neural, deep learning, machine learning,
+reinforcement learning, nlp, computer vision, diffusion, generative ai,
+rag, agent, embedding, fine-tuning, inference, benchmark, sota,
+state-of-the-art, foundation model
+```
+
+**Formula**: `relevance = clamp(0, 1, w1*category_match + w2*keyword_density + w3*source_relevance)`
+
+**Threshold**: Items with `relevance_score < 0.3` are filtered out.
+
+##### 2. Importance Score (0.0 - 1.0)
+
+**Question**: "How impactful is this likely to be?"
+
+**Method**: Hybrid (50% rules + 50% LLM)
+
+**Rule-based signals**:
+
+| Signal | Description | Weight |
+|--------|-------------|--------|
+| `author_authority` | From known labs (OpenAI, Anthropic, DeepMind, Meta AI, Google, Stanford, etc.) | 0.15 |
+| `has_code` | Code repository linked | 0.10 |
+| `has_dataset` | Dataset mentioned/released | 0.05 |
+| `stars_velocity` | GitHub stars gained in 24h (repos only) | 0.10 |
+| `cross_mentions` | Referenced in other sources | 0.10 |
+
+**LLM prompt** (per item, cached):
+```
+Rate the potential impact of this AI content (0.0-1.0).
+Title: {title}
+Abstract: {abstract}
+Consider: new method/benchmark? practitioner impact? reproducible?
+Respond: {"importance": 0.X, "reason": "..."}
+```
+
+**Formula**: `importance = 0.5 * rule_importance + 0.5 * llm_importance`
+
+##### 3. Novelty Score (0.0 - 1.0, optional)
+
+**Question**: "What's new vs. the recent baseline?"
+
+**Method**: LLM-assisted with recent context (deferred for MVP)
+
+**Prompt template** (when enabled):
+```
+Rate novelty vs. recent AI work (0.0-1.0).
+Title: {title}
+Recent related (7d): {recent_titles}
+Consider: new approach? unsolved problem? similar recent work?
+Respond: {"novelty": 0.X, "reason": "..."}
+```
+
+##### 4. Frontier Score (0.0 - 1.0, optional)
+
+**Question**: "Is this worth attention right now?"
+
+**Method**: Weighted combination (no additional LLM call)
+
+**Formula**:
+```
+frontier = 0.2 * relevance + 0.5 * importance + 0.2 * novelty + 0.1 * recency_boost
+recency_boost = max(0, 1 - hours_since_published / 168)  # Decays over 7 days
+```
+
+**Default sort**: `frontier_score` if present, else `importance_score`.
+
+##### Explanation Generation
+
+Each scored item includes a `ScoreBreakdown.explanation`:
+```
+"High importance: from Anthropic, introduces new benchmark.
+Novelty: addresses underexplored agent evaluation."
+```
+
+##### MVP Defaults
+
+| Parameter | Default |
+|-----------|---------|
+| `relevance_threshold` | 0.3 |
+| `importance_rule_weight` | 0.5 |
+| `frontier_weights` | [0.2, 0.5, 0.2, 0.1] |
+| `recency_decay_hours` | 168 |
+| `novelty_enabled` | false |
+
+##### Cost Controls
+
+- 1 LLM call per item for importance (cached, re-score on demand)
+- Use cheapest capable model (Claude Haiku / GPT-4o-mini)
+- Batch process 10-20 items to reduce overhead
+- Track LLM usage per run (FR-10)
 
 ### 4.4 Delivery Channels
 
