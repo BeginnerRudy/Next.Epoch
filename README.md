@@ -133,13 +133,33 @@ ANTHROPIC_API_KEY=sk-ant-...
 REDIS_URL=redis://localhost:6379
 ```
 
-### 3. Initialize Database
+### 3. Set Up PostgreSQL
+
+**Option A: Using Docker (recommended)**
+```bash
+docker run -d \
+  --name next-epoch-db \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=next_epoch \
+  -p 5432:5432 \
+  postgres:14
+```
+
+**Option B: Using Homebrew (macOS)**
+```bash
+brew install postgresql@14
+brew services start postgresql@14
+createdb next_epoch
+```
+
+### 4. Initialize Database
 
 ```bash
 alembic upgrade head
 ```
 
-### 4. Run
+### 5. Run
 
 ```bash
 # Terminal 1: Backend API
