@@ -1,8 +1,8 @@
 # Next.Epoch - Data Models Specification
 
-> **Version:** 0.1.0
+> **Version:** 0.2.0
 > **Status:** Draft
-> **Last Updated:** 2025-01-11
+> **Last Updated:** 2026-01-11
 
 ---
 
@@ -20,9 +20,10 @@ Represents a research paper (primarily from arXiv).
 
 ```yaml
 Paper:
-  id: string                    # Unique identifier (e.g., "arxiv:2401.12345")
+  id: uuid                       # Internal identifier (UUIDv7)
   source: SourceType            # Origin source
-  external_id: string           # ID from source (e.g., arXiv ID)
+  external_id: string           # ID from source (e.g., arXiv ID "2401.12345")
+  canonical_ref: string         # Stable dedupe key (e.g., "arxiv:2401.12345")
   title: string                 # Paper title
   authors: Author[]             # List of authors
   abstract: string              # Paper abstract
@@ -41,9 +42,10 @@ Represents a news article from AI news sites.
 
 ```yaml
 Article:
-  id: string                    # Unique identifier
+  id: uuid                      # Internal identifier (UUIDv7)
   source: SourceType            # Origin source
   external_id: string | null    # ID from source if available
+  canonical_ref: string         # Stable dedupe key (e.g., "verge:<slug>")
   title: string                 # Article title
   author: string | null         # Author name
   content: string               # Full article content
@@ -61,8 +63,10 @@ Represents a GitHub repository.
 
 ```yaml
 Repository:
-  id: string                    # Unique identifier
+  id: uuid                      # Internal identifier (UUIDv7)
   source: SourceType            # Always "github"
+  external_id: string           # GitHub repo ID
+  canonical_ref: string         # Stable dedupe key (e.g., "github:owner/repo")
   name: string                  # Repo name
   full_name: string             # owner/repo
   description: string | null    # Repo description
@@ -86,9 +90,10 @@ Represents a post from Twitter/X.
 
 ```yaml
 SocialPost:
-  id: string                    # Unique identifier
+  id: uuid                      # Internal identifier (UUIDv7)
   source: SourceType            # Always "twitter"
   external_id: string           # Tweet ID
+  canonical_ref: string         # Stable dedupe key (e.g., "twitter:<tweet_id>")
   author_handle: string         # @username
   author_name: string           # Display name
   author_verified: boolean      # Verified account
@@ -109,8 +114,10 @@ Represents official announcements (e.g., from Anthropic).
 
 ```yaml
 Announcement:
-  id: string                    # Unique identifier
+  id: uuid                      # Internal identifier (UUIDv7)
   source: SourceType            # e.g., "anthropic"
+  external_id: string | null    # Source ID if available
+  canonical_ref: string         # Stable dedupe key (e.g., "anthropic:<slug>")
   title: string                 # Announcement title
   content: string               # Full content
   excerpt: string               # Short summary
@@ -131,7 +138,7 @@ A normalized wrapper for any content type.
 
 ```yaml
 ContentItem:
-  id: string                    # Unique identifier
+  id: uuid                      # Unique identifier (UUIDv7)
   type: ContentType             # paper | article | repository | social | announcement
   source: SourceType            # Origin source
   title: string                 # Content title
@@ -139,14 +146,98 @@ ContentItem:
   url: string                   # Original URL
   relevance_score: float        # 0.0 - 1.0
   importance_score: float       # 0.0 - 1.0 (impact/significance)
+  novelty_score: float | null   # 0.0 - 1.0 (new vs baseline)
+  frontier_score: float | null  # 0.0 - 1.0 (combined frontier ranking)
+  score_breakdown: ScoreBreakdown | null
   tags: string[]                # Topic tags
-  categories: string[]          # Broad categories
+  categories: string[]          # Broad categories / fields (top-level)
   published_at: datetime        # Original publication
   processed_at: datetime        # When processed by our system
+  fields: FieldRef[]            # Mapped fields (may be multiple, with confidence)
+  signals: Signal[]             # Evidence signals used for scoring (bounded list)
+  provenance: ContentProvenance | null
   raw_content: Paper | Article | Repository | SocialPost | Announcement
 ```
 
-### 2.2 Digest
+### 2.2 Field (Taxonomy)
+
+A field represents a stable area of AI used for tracking the frontier.
+
+```yaml
+Field:
+  id: string                    # Stable ID (e.g., "agents", "llm", "robotics")
+  name: string                  # Display name
+  description: string | null
+  parent_id: string | null      # For hierarchical taxonomy
+  aliases: string[]             # Alternate names
+  status: FieldStatus
+  created_at: datetime
+  updated_at: datetime
+
+FieldRef:
+  field_id: string
+  confidence: float             # 0.0 - 1.0
+```
+
+### 2.3 Signals & Scoring
+
+Signals are explainable evidence used to compute scores.
+
+```yaml
+Signal:
+  key: string                   # e.g., "has_code", "stars_velocity", "mentions"
+  value: string | number | boolean
+  weight: float | null          # Optional, if used directly in scoring
+  source: string | null         # Where the signal came from
+
+ScoreBreakdown:
+  relevance: float
+  importance: float
+  novelty: float | null
+  frontier: float | null
+  explanation: string | null    # Short human-readable justification
+
+### 2.4 Provenance & Runs
+
+Provenance makes the agent debuggable and auditable.
+
+```yaml
+ContentProvenance:
+  fetched_at: datetime
+  fetched_from: string          # URL or source endpoint
+  parser: string                # Parser/normalizer name
+  parser_version: string
+  content_hash: string | null   # Hash of normalized text if available
+  language: string | null
+
+ProcessingRun:
+  id: uuid
+  type: RunType                 # ingest | enrich | summarize | score | digest
+  status: RunStatus             # pending | running | succeeded | failed
+  source: SourceType | null
+  started_at: datetime
+  finished_at: datetime | null
+  stats: object | null          # e.g., items_fetched, items_created, llm_calls
+  error: string | null
+```
+
+### 2.5 Feedback (Evaluation Loop)
+
+Feedback is used to evaluate and improve ranking/summaries.
+
+```yaml
+Feedback:
+  id: uuid
+  content_id: uuid
+  kind: FeedbackKind            # relevance | value | summary_quality
+  rating: integer               # e.g., 1-5 or -1/0/1 depending on kind
+  comment: string | null
+  created_at: datetime
+  actor: string | null          # API key id, user id, or "anonymous"
+```
+```
+
+### 2.6 Digest
 
 A curated collection of content for a time period.
 
@@ -232,6 +323,28 @@ TrendMomentum:
   - rising
   - stable
   - declining
+
+FieldStatus:
+  - active
+  - deprecated
+
+RunType:
+  - ingest
+  - enrich
+  - summarize
+  - score
+  - digest
+
+RunStatus:
+  - pending
+  - running
+  - succeeded
+  - failed
+
+FeedbackKind:
+  - relevance
+  - value
+  - summary_quality
 ```
 
 ---
