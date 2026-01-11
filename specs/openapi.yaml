@@ -1,0 +1,1001 @@
+openapi: 3.1.0
+info:
+  title: Next.Epoch API
+  description: |
+    **Next.Epoch** - AI Frontier Intelligence Platform
+
+    Track the cutting edge of AI research, news, and tools.
+
+    ## Authentication
+    All endpoints require an API key passed via the `X-API-Key` header.
+
+    ## Rate Limiting
+    - Default: 100 requests/minute
+    - Digest generation: 10 requests/minute
+  version: 0.1.0
+  contact:
+    name: Next.Epoch Support
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development
+  - url: https://api.nextepoch.ai/v1
+    description: Production (future)
+
+tags:
+  - name: Content
+    description: Access curated AI content
+  - name: Digests
+    description: AI-generated summaries and briefings
+  - name: Sources
+    description: Manage content sources
+  - name: Trends
+    description: AI field trend analysis
+  - name: Health
+    description: System health checks
+
+paths:
+  # ============================================================
+  # CONTENT ENDPOINTS
+  # ============================================================
+  /content:
+    get:
+      tags: [Content]
+      summary: List all content
+      description: Retrieve paginated list of all ingested content, with filtering options.
+      operationId: listContent
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SourceFilter'
+        - $ref: '#/components/parameters/TypeFilter'
+        - $ref: '#/components/parameters/TagsFilter'
+        - $ref: '#/components/parameters/SinceFilter'
+        - $ref: '#/components/parameters/UntilFilter'
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [published_at, relevance_score, importance_score]
+            default: published_at
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: Paginated list of content items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedContentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /content/{id}:
+    get:
+      tags: [Content]
+      summary: Get content by ID
+      description: Retrieve a single content item with full details.
+      operationId: getContent
+      parameters:
+        - $ref: '#/components/parameters/ContentId'
+      responses:
+        '200':
+          description: Content item details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentItem'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /content/search:
+    get:
+      tags: [Content]
+      summary: Search content
+      description: Full-text search across all content.
+      operationId: searchContent
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 200
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SourceFilter'
+        - $ref: '#/components/parameters/TypeFilter'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedContentResponse'
+
+  # ============================================================
+  # PAPERS ENDPOINTS
+  # ============================================================
+  /papers:
+    get:
+      tags: [Content]
+      summary: List papers
+      description: Retrieve papers from arXiv and other research sources.
+      operationId: listPapers
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - $ref: '#/components/parameters/SinceFilter'
+        - $ref: '#/components/parameters/UntilFilter'
+        - name: category
+          in: query
+          description: Filter by arXiv category
+          schema:
+            type: string
+            example: cs.AI
+        - $ref: '#/components/parameters/TagsFilter'
+      responses:
+        '200':
+          description: Paginated list of papers
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedPaperResponse'
+
+  /papers/{id}:
+    get:
+      tags: [Content]
+      summary: Get paper by ID
+      operationId: getPaper
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paper details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Paper'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /papers/{id}/summary:
+    get:
+      tags: [Content]
+      summary: Get AI-generated paper summary
+      description: Returns an AI-generated summary of the paper. May be cached or generated on-demand.
+      operationId: getPaperSummary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: style
+          in: query
+          description: Summary style
+          schema:
+            type: string
+            enum: [brief, detailed, eli5, technical]
+            default: brief
+      responses:
+        '200':
+          description: Paper summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Summary'
+
+  # ============================================================
+  # DIGESTS ENDPOINTS
+  # ============================================================
+  /digests:
+    get:
+      tags: [Digests]
+      summary: List digests
+      description: Retrieve previously generated digests.
+      operationId: listDigests
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/DigestType'
+      responses:
+        '200':
+          description: Paginated list of digests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDigestResponse'
+
+    post:
+      tags: [Digests]
+      summary: Generate new digest
+      description: |
+        Trigger generation of a new digest. This is an async operation.
+        Returns immediately with a digest ID that can be polled for status.
+      operationId: createDigest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDigestRequest'
+      responses:
+        '202':
+          description: Digest generation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DigestJob'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /digests/latest:
+    get:
+      tags: [Digests]
+      summary: Get latest digest
+      description: Retrieve the most recent digest of a given type.
+      operationId: getLatestDigest
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/DigestType'
+      responses:
+        '200':
+          description: Latest digest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Digest'
+        '404':
+          description: No digest found for this type
+
+  /digests/{id}:
+    get:
+      tags: [Digests]
+      summary: Get digest by ID
+      operationId: getDigest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Digest details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Digest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================================================
+  # SOURCES ENDPOINTS
+  # ============================================================
+  /sources:
+    get:
+      tags: [Sources]
+      summary: List configured sources
+      description: Get all configured content sources and their status.
+      operationId: listSources
+      responses:
+        '200':
+          description: List of sources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SourceConfig'
+
+  /sources/{id}:
+    get:
+      tags: [Sources]
+      summary: Get source details
+      operationId: getSource
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Source details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceConfig'
+
+    patch:
+      tags: [Sources]
+      summary: Update source configuration
+      operationId: updateSource
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSourceRequest'
+      responses:
+        '200':
+          description: Updated source
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SourceConfig'
+
+  /sources/{id}/refresh:
+    post:
+      tags: [Sources]
+      summary: Trigger source refresh
+      description: Manually trigger a refresh for a specific source.
+      operationId: refreshSource
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Refresh triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  job_id:
+                    type: string
+
+  # ============================================================
+  # TRENDS ENDPOINTS
+  # ============================================================
+  /trends:
+    get:
+      tags: [Trends]
+      summary: Get current trends
+      description: Retrieve detected trends in the AI field.
+      operationId: listTrends
+      parameters:
+        - name: momentum
+          in: query
+          schema:
+            type: string
+            enum: [rising, stable, declining]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+      responses:
+        '200':
+          description: List of trends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Trend'
+
+  /trends/{id}:
+    get:
+      tags: [Trends]
+      summary: Get trend details
+      operationId: getTrend
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trend details with related content
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrendDetails'
+
+  # ============================================================
+  # HEALTH ENDPOINTS
+  # ============================================================
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Basic health check endpoint.
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  timestamp:
+                    type: string
+                    format: date-time
+                  version:
+                    type: string
+
+  /health/ready:
+    get:
+      tags: [Health]
+      summary: Readiness check
+      description: Check if service is ready to accept requests.
+      operationId: readinessCheck
+      security: []
+      responses:
+        '200':
+          description: Service is ready
+        '503':
+          description: Service is not ready
+
+# ============================================================
+# COMPONENTS
+# ============================================================
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (1-indexed)
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    PerPageParam:
+      name: per_page
+      in: query
+      description: Items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    ContentId:
+      name: id
+      in: path
+      required: true
+      description: Content item ID
+      schema:
+        type: string
+        format: uuid
+
+    SourceFilter:
+      name: source
+      in: query
+      description: Filter by source
+      schema:
+        $ref: '#/components/schemas/SourceType'
+
+    TypeFilter:
+      name: type
+      in: query
+      description: Filter by content type
+      schema:
+        $ref: '#/components/schemas/ContentType'
+
+    TagsFilter:
+      name: tags
+      in: query
+      description: Filter by tags (comma-separated)
+      schema:
+        type: string
+        example: llm,transformers
+
+    SinceFilter:
+      name: since
+      in: query
+      description: Filter content published after this date
+      schema:
+        type: string
+        format: date-time
+
+    UntilFilter:
+      name: until
+      in: query
+      description: Filter content published before this date
+      schema:
+        type: string
+        format: date-time
+
+  schemas:
+    # ----------------------------------------------------------
+    # Enums
+    # ----------------------------------------------------------
+    SourceType:
+      type: string
+      enum:
+        - arxiv
+        - github
+        - twitter
+        - anthropic
+        - verge
+        - venturebeat
+        - techcrunch
+        - custom
+
+    ContentType:
+      type: string
+      enum:
+        - paper
+        - article
+        - repository
+        - social
+        - announcement
+
+    DigestType:
+      type: string
+      enum:
+        - flash
+        - daily
+        - weekly
+        - deep_dive
+
+    TrendMomentum:
+      type: string
+      enum:
+        - rising
+        - stable
+        - declining
+
+    # ----------------------------------------------------------
+    # Core Models
+    # ----------------------------------------------------------
+    Author:
+      type: object
+      properties:
+        name:
+          type: string
+        affiliation:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+      required:
+        - name
+
+    Paper:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        source:
+          $ref: '#/components/schemas/SourceType'
+        external_id:
+          type: string
+          description: arXiv ID or similar
+        title:
+          type: string
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Author'
+        abstract:
+          type: string
+        url:
+          type: string
+          format: uri
+        pdf_url:
+          type: string
+          format: uri
+          nullable: true
+        published_at:
+          type: string
+          format: date-time
+        categories:
+          type: array
+          items:
+            type: string
+        tags:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string
+          nullable: true
+          description: AI-generated summary
+      required:
+        - id
+        - source
+        - title
+        - authors
+        - abstract
+        - url
+        - published_at
+
+    ContentItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/ContentType'
+        source:
+          $ref: '#/components/schemas/SourceType'
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        url:
+          type: string
+          format: uri
+        relevance_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        importance_score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        tags:
+          type: array
+          items:
+            type: string
+        published_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - source
+        - title
+        - url
+        - published_at
+
+    Summary:
+      type: object
+      properties:
+        content_id:
+          type: string
+        style:
+          type: string
+          enum: [brief, detailed, eli5, technical]
+        summary:
+          type: string
+        key_points:
+          type: array
+          items:
+            type: string
+        generated_at:
+          type: string
+          format: date-time
+      required:
+        - content_id
+        - style
+        - summary
+        - generated_at
+
+    Digest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/DigestType'
+        title:
+          type: string
+        executive_summary:
+          type: string
+        period_start:
+          type: string
+          format: date-time
+        period_end:
+          type: string
+          format: date-time
+        sections:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              summary:
+                type: string
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ContentItem'
+        highlights:
+          type: array
+          items:
+            type: string
+        stats:
+          type: object
+          properties:
+            total_items:
+              type: integer
+            papers_count:
+              type: integer
+            articles_count:
+              type: integer
+            repos_count:
+              type: integer
+        generated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - type
+        - title
+        - executive_summary
+        - period_start
+        - period_end
+        - generated_at
+
+    DigestJob:
+      type: object
+      properties:
+        job_id:
+          type: string
+        digest_id:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateDigestRequest:
+      type: object
+      properties:
+        type:
+          $ref: '#/components/schemas/DigestType'
+        period_start:
+          type: string
+          format: date-time
+          description: Optional, defaults based on digest type
+        period_end:
+          type: string
+          format: date-time
+          description: Optional, defaults to now
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SourceType'
+          description: Optional, defaults to all sources
+        tags:
+          type: array
+          items:
+            type: string
+          description: Optional topic filter
+      required:
+        - type
+
+    Trend:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        momentum:
+          $ref: '#/components/schemas/TrendMomentum'
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        first_detected:
+          type: string
+          format: date-time
+        keywords:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - name
+        - momentum
+        - confidence
+
+    TrendDetails:
+      allOf:
+        - $ref: '#/components/schemas/Trend'
+        - type: object
+          properties:
+            related_content:
+              type: array
+              items:
+                $ref: '#/components/schemas/ContentItem'
+
+    SourceConfig:
+      type: object
+      properties:
+        id:
+          type: string
+        type:
+          $ref: '#/components/schemas/SourceType'
+        name:
+          type: string
+        enabled:
+          type: boolean
+        refresh_interval:
+          type: integer
+          description: Minutes between refreshes
+        last_fetched:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [active, error, disabled]
+        error_count:
+          type: integer
+
+    UpdateSourceRequest:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+        refresh_interval:
+          type: integer
+          minimum: 5
+          maximum: 1440
+
+    # ----------------------------------------------------------
+    # Pagination
+    # ----------------------------------------------------------
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total_items:
+          type: integer
+        total_pages:
+          type: integer
+        has_next:
+          type: boolean
+        has_prev:
+          type: boolean
+
+    PaginatedContentResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentItem'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    PaginatedPaperResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Paper'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    PaginatedDigestResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Digest'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    # ----------------------------------------------------------
+    # Errors
+    # ----------------------------------------------------------
+    APIError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+              nullable: true
+        request_id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+
+    Unauthorized:
+      description: Missing or invalid API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+
+    RateLimited:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/APIError'
+
+security:
+  - ApiKeyAuth: []
