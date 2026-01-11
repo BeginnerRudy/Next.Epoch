@@ -92,14 +92,58 @@ Beautiful, responsive dashboard built with Next.js:
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Option 1: Docker Compose (Recommended)
+
+The easiest way to run Next.Epoch - everything in one command!
+
+```bash
+# Clone the repo
+git clone https://github.com/BeginnerRudy/Next.Epoch.git
+cd Next.Epoch
+
+# (Optional) Set your LLM API key
+export OPENAI_API_KEY=sk-your-key-here
+# or
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Start everything
+docker compose up -d
+
+# Run database migrations
+docker compose run --rm migrate
+```
+
+🎉 Open http://localhost:3000 and explore!
+
+**Services:**
+| Service | URL | Description |
+|---------|-----|-------------|
+| Web UI | http://localhost:3000 | Next.js dashboard |
+| API | http://localhost:8000 | FastAPI backend |
+| API Docs | http://localhost:8000/docs | Swagger documentation |
+| PostgreSQL | localhost:5432 | Database |
+| Redis | localhost:6379 | Cache |
+
+**Commands:**
+```bash
+docker compose up -d      # Start all services
+docker compose down       # Stop all services
+docker compose logs -f    # View logs
+docker compose ps         # Check status
+```
+
+---
+
+### Option 2: Manual Setup
+
+#### Prerequisites
 
 - Python 3.11+
 - Node.js 18+
 - PostgreSQL 14+
 - Redis (optional, for caching)
 
-### 1. Clone & Install
+#### 1. Clone & Install
 
 ```bash
 git clone https://github.com/yourusername/next-epoch.git
