@@ -1,0 +1,144 @@
+[project]
+name = "next-epoch"
+version = "0.1.0"
+description = "AI Frontier Intelligence Platform - Track the cutting edge of AI research"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Next.Epoch Team" }]
+keywords = ["ai", "research", "arxiv", "machine-learning", "news"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    # Web Framework
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+
+    # Database
+    "sqlalchemy>=2.0.25",
+    "alembic>=1.13.1",
+    "asyncpg>=0.29.0",  # PostgreSQL async driver
+    "psycopg2-binary>=2.9.9",  # PostgreSQL sync driver for migrations
+
+    # Redis (caching)
+    "redis>=5.0.1",
+
+    # HTTP Client
+    "httpx>=0.26.0",
+    "aiohttp>=3.9.1",
+
+    # LLM Integration
+    "litellm>=1.17.0",
+
+    # Data Validation
+    "pydantic>=2.5.3",
+    "pydantic-settings>=2.1.0",
+
+    # Scheduling
+    "apscheduler>=3.10.4",
+
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "uuid7>=0.1.0",  # UUIDv7 support
+    "beautifulsoup4>=4.12.2",  # HTML parsing for GitHub trending
+    "lxml>=5.1.0",  # XML/HTML parser
+    "feedparser>=6.0.10",  # RSS/Atom feed parsing
+    "tenacity>=8.2.3",  # Retry logic
+    "structlog>=24.1.0",  # Structured logging
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.4",
+    "pytest-asyncio>=0.23.3",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.26.0",  # For TestClient
+    "greenlet>=3.0.0",  # Required for SQLAlchemy async in sync context (TestClient)
+    "ruff>=0.1.11",
+    "black>=24.1.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+    "respx>=0.20.2",  # For mocking httpx
+    "factory-boy>=3.3.0",  # Test factories
+    "faker>=22.0.0",  # Fake data generation
+]
+
+[project.scripts]
+next-epoch = "next_epoch.cli:main"
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # Pyflakes
+    "I",     # isort
+    "B",     # flake8-bugbear
+    "C4",    # flake8-comprehensions
+    "UP",    # pyupgrade
+    "ARG",   # flake8-unused-arguments
+    "SIM",   # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "B904",  # raise without from in except
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["next_epoch"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_ignores = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["feedparser", "uuid7", "bs4", "lxml"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["src/next_epoch"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
