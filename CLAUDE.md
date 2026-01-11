@@ -8,61 +8,133 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Structure
 
-- `specs/SPEC.md` - Product specification (MVP requirements, features, architecture)
-- `specs/MODELS.md` - Data models (entities, relationships, enums)
-- `specs/openapi.yaml` - REST API specification (OpenAPI 3.1)
-- `specs/DevelopmentGuidelines.md` - Development philosophy and process
+```
+next-epoch/
+├── src/next_epoch/          # Python backend
+│   ├── api/                 # FastAPI REST API
+│   ├── db/                  # SQLAlchemy models & repositories
+│   ├── ingestion/           # Source collectors & normalizers
+│   ├── intelligence/        # Scoring & summarization
+│   ├── schemas/             # Pydantic models
+│   └── tasks/               # Background job scheduling
+├── web/                     # Next.js frontend
+│   └── src/
+│       ├── app/             # Pages (Dashboard, Search, Content, Digests)
+│       ├── components/      # React components
+│       └── lib/             # API client & utilities
+├── tests/                   # Test suite (104 tests)
+├── alembic/                 # Database migrations
+├── specs/                   # Specifications
+│   ├── SPEC.md             # Product spec
+│   ├── MODELS.md           # Data models
+│   └── openapi.yaml        # API spec
+└── IMPLEMENTATION_PLAN.md   # Development stages (MVP complete)
+```
+
+## Running the Application
+
+### Backend (Python/FastAPI)
+
+```bash
+# Install dependencies
+pip install -e ".[dev]"
+
+# Set up environment
+cp .env.example .env
+# Edit .env with DATABASE_URL and LLM API keys
+
+# Run database migrations
+alembic upgrade head
+
+# Start API server
+uvicorn next_epoch.api.main:app --reload
+# API available at http://localhost:8000
+# Docs at http://localhost:8000/docs
+```
+
+### Frontend (Next.js)
+
+```bash
+cd web
+npm install
+npm run dev
+# UI available at http://localhost:3000
+```
+
+### Running Tests
+
+```bash
+pytest                    # All tests
+pytest tests/unit/        # Unit tests only
+pytest tests/integration/ # Integration tests only
+pytest --cov=next_epoch   # With coverage
+```
 
 ## Technical Stack
 
-Python 3.11+, FastAPI, Typer/Click, LiteLLM, PostgreSQL + Redis, Celery/APScheduler, Docker
+| Layer | Technology |
+|-------|------------|
+| Backend API | Python 3.11+, FastAPI, Pydantic 2.x |
+| Database | PostgreSQL, SQLAlchemy 2.0 (async), Alembic |
+| LLM Integration | LiteLLM (OpenAI, Anthropic, etc.) |
+| Scheduling | APScheduler |
+| Frontend | Next.js 14, TypeScript, Tailwind CSS, React Query |
 
 ## Architecture
 
 Three-layer design:
-1. **Ingestion**: Collectors → Normalizers → Deduplicator → Storage
-2. **Intelligence**: Categorizer, Summarizer, Ranker, Trend Detection (via LiteLLM)
-3. **Delivery**: REST API, Web App, Discord/Slack, Email
-
-### Agent Loop (Field Tracking)
-Sense → Normalize → Dedupe → Enrich → Score → Aggregate → Explain → Deliver
+1. **Ingestion**: Collectors → Normalizers → Storage
+2. **Intelligence**: Relevance Scorer, Importance Scorer, Summarizer (via LiteLLM)
+3. **Delivery**: REST API, Next.js Web App
 
 ### Scoring Algorithm
 
 Hybrid approach: rule-based for relevance, LLM-assisted for importance.
 
-| Score | Method | Formula |
-|-------|--------|---------|
-| `relevance` | Rules | category_match + keyword_density + source_relevance |
-| `importance` | Hybrid | 0.5 * rules + 0.5 * LLM judgment |
-| `novelty` | LLM | vs recent baseline (optional, deferred for MVP) |
-| `frontier` | Combined | 0.2*rel + 0.5*imp + 0.2*nov + 0.1*recency |
+| Score | Weight | Method |
+|-------|--------|--------|
+| `relevance` | 20% | Rule-based (category_match + keyword_density) |
+| `importance` | 50% | Hybrid (author_authority + has_code + stars_velocity) |
+| `novelty` | 20% | LLM-assisted (vs recent baseline) |
+| `recency` | 10% | Time decay boost |
 
-Key signals: `category_match`, `author_authority`, `has_code`, `stars_velocity`, `cross_mentions`
+**Frontier Score** = 0.2×relevance + 0.5×importance + 0.2×novelty + 0.1×recency
 
-See `specs/SPEC.md` section "Scoring Algorithm" for full details.
+Key signals: `category_match`, `author_authority`, `has_code`, `stars_velocity`, `keyword_density`
 
-## MVP Scope
+## Key Files
 
-**In scope**: arXiv + GitHub Trending ingestion, summaries, REST API, Web App UI
-**Out of scope**: User accounts, personalized feeds, CLI as primary UX, Slack/Discord/Email
+### Backend
+- `src/next_epoch/api/main.py` - FastAPI application entry point
+- `src/next_epoch/config.py` - Environment configuration
+- `src/next_epoch/db/models.py` - SQLAlchemy database models
+- `src/next_epoch/intelligence/scorer.py` - Frontier score calculation
+- `src/next_epoch/ingestion/collectors/` - arXiv and GitHub collectors
+- `src/next_epoch/tasks/scheduler.py` - Background job scheduling
 
-### Key Functional Requirements
-- FR-1: Scheduled ingestion with retry
-- FR-2: Idempotent ingestion (no duplicates on re-run)
-- FR-3: Near-duplicate deduplication across sources
-- FR-5: Explainability ("why this matters" + evidence signals)
-- FR-9: Observability (log failures with actionable errors)
-- FR-10: Cost controls (track LLM usage per run)
+### Frontend
+- `web/src/app/page.tsx` - Dashboard page
+- `web/src/app/search/page.tsx` - Search page
+- `web/src/app/content/[id]/page.tsx` - Content detail page
+- `web/src/lib/api.ts` - API client
 
-## Key Data Models
+## Common Tasks
 
-- **ContentItem**: Unified wrapper with scores, signals, provenance, field mappings
-- **Field**: Taxonomy entry (e.g., "agents", "llm", "robotics") with hierarchy
-- **ProcessingRun**: Auditable run record (ingest/enrich/summarize/score/digest)
-- **Feedback**: User ratings for evaluation loop
+### Add a new source collector
+1. Create `src/next_epoch/ingestion/collectors/newsource.py`
+2. Extend `BaseCollector` class
+3. Implement `collect()` method returning raw items
+4. Add normalizer logic in `normalizers/content.py`
 
-All IDs use UUIDv7. All content has `canonical_ref` for deduplication.
+### Add a new API endpoint
+1. Create route in `src/next_epoch/api/routes/`
+2. Register router in `src/next_epoch/api/main.py`
+3. Add tests in `tests/integration/test_api.py`
+
+### Add a new scoring signal
+1. Add signal function in `src/next_epoch/intelligence/importance.py` or `relevance.py`
+2. Include in score calculation
+3. Add to `signals` list in result
 
 ## Development Guidelines
 
@@ -72,23 +144,29 @@ All IDs use UUIDv7. All content has `canonical_ref` for deduplication.
 - Avoid premature abstractions
 
 ### Process
-1. **Plan**: Break complex work into 3-5 stages in `IMPLEMENTATION_PLAN.md`
-2. **Understand**: Study existing patterns before implementing
-3. **Test**: Write test first (TDD: red → green → refactor)
-4. **Commit**: Must compile, pass tests, explain "why"
-
-### When Stuck (After 3 Attempts)
-STOP. Document failures, research alternatives, question fundamentals.
+1. **Understand**: Study existing patterns before implementing
+2. **Test**: Write test first (TDD: red → green → refactor)
+3. **Commit**: Must compile, pass tests, explain "why"
 
 ### Technical Standards
 - Composition over inheritance
 - Explicit data flow, fail fast with descriptive errors
 - Never disable tests—fix them
-- No `--no-verify` to bypass hooks
-
-### Decision Framework
-1. Testability → 2. Readability → 3. Consistency → 4. Simplicity → 5. Reversibility
+- All IDs use UUIDv7
 
 ### Definition of Done
-- Tests passing, code follows conventions, no linter warnings
-- Commit messages are clear, no TODOs without issue numbers
+- Tests passing (104 tests in suite)
+- Code follows existing conventions
+- Commit messages are clear
+
+## MVP Status: Complete ✅
+
+All MVP features implemented:
+- [x] arXiv + GitHub Trending ingestion
+- [x] Scoring algorithm with explainability
+- [x] REST API with all endpoints
+- [x] Next.js web dashboard
+- [x] Search with filters
+- [x] Content detail with score breakdown
+- [x] Digests (daily/weekly)
+- [x] 104 tests passing

@@ -1,4 +1,4 @@
-# .env files
+# Environment variables
 .env
 .env.local
 .env.*.local
@@ -64,3 +64,25 @@ logs/
 data/
 *.db
 *.sqlite3
+
+# Node.js / Next.js
+node_modules/
+web/node_modules/
+web/.next/
+web/out/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Next.js build output
+.vercel
+
+# Turbo
+.turbo
+
+# Package manager lock files (optional - uncomment if not needed)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
