@@ -3,7 +3,7 @@ import { ExternalLink, Star, GitFork, Users } from 'lucide-react';
 import { ContentItem } from '@/types';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
 import { SourceBadge } from '@/components/ui/SourceBadge';
-import { formatRelativeTime, truncate, formatNumber } from '@/lib/utils';
+import { formatRelativeTime, truncate, formatNumber, formatDate } from '@/lib/utils';
 
 interface ContentCardProps {
   item: ContentItem;
@@ -14,13 +14,26 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
   const isPaper = item.type === 'paper';
   const isRepo = item.type === 'repository';
 
+  // Tooltip text explaining what the time means
+  const exactTime = formatDate(item.published_at);
+  const timeTooltip = isPaper
+    ? `Published: ${exactTime}`
+    : `Discovered from GitHub Trending: ${exactTime}`;
+
   return (
     <article className="content-card bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <SourceBadge source={item.source} size="sm" />
-          <span className="text-sm text-gray-500">{formatRelativeTime(item.published_at)}</span>
+          <span className="relative group">
+            <span className="text-sm text-gray-500 cursor-help border-b border-dotted border-gray-400">
+              {formatRelativeTime(item.published_at)}
+            </span>
+            <span className="absolute left-0 top-full mt-1 z-50 hidden group-hover:block px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg whitespace-nowrap">
+              {timeTooltip}
+            </span>
+          </span>
         </div>
         <ScoreBadge score={item.frontier_score} size="sm" />
       </div>
