@@ -116,7 +116,7 @@ export default function DashboardPage() {
 
   const { data: contentData, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['content', 'dashboard'],
-    queryFn: () => getContent({ per_page: 10 }),
+    queryFn: () => getContent({ per_page: 10, sort: 'frontier_score', order: 'desc' }),
     retry: false,
   });
 

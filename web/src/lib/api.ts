@@ -31,6 +31,8 @@ export async function getContent(params?: {
   category?: string;
   page?: number;
   per_page?: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
 }): Promise<PaginatedResponse<ContentItem>> {
   const searchParams = new URLSearchParams();
   if (params?.source) searchParams.set('source', params.source);
@@ -39,6 +41,8 @@ export async function getContent(params?: {
   if (params?.category) searchParams.set('category', params.category);
   if (params?.page) searchParams.set('page', String(params.page));
   if (params?.per_page) searchParams.set('per_page', String(params.per_page));
+  if (params?.sort) searchParams.set('sort', params.sort);
+  if (params?.order) searchParams.set('order', params.order);
 
   const query = searchParams.toString();
   return fetchApi<PaginatedResponse<ContentItem>>(`/content${query ? `?${query}` : ''}`);
