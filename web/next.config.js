@@ -2,16 +2,8 @@
 const nextConfig = {
   output: 'standalone',
 
-  // API proxy to backend
-  async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
-      },
-    ];
-  },
+  // Note: API proxying is now handled by /src/app/api/v1/[...path]/route.ts
+  // This works in both development and production standalone mode
 };
 
 module.exports = nextConfig;
