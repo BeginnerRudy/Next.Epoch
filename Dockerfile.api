@@ -3,6 +3,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Use China Debian mirror for faster package downloads
+RUN sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    sed -i 's|http://deb.debian.org|http://mirrors.aliyun.com|g' /etc/apt/sources.list 2>/dev/null || true
+
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
@@ -14,8 +18,8 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml .
 COPY src/ src/
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
+# Install Python dependencies (using China mirror)
+RUN pip install --no-cache-dir -i https://pypi.tuna.tsinghua.edu.cn/simple -e .
 
 # Copy alembic config
 COPY alembic.ini .

@@ -1,5 +1,6 @@
 """Sources API endpoints."""
 
+import asyncio
 from datetime import datetime
 from typing import Annotated
 
@@ -10,6 +11,7 @@ from next_epoch.db.models import SourceConfigModel
 from next_epoch.schemas.source import SourceConfig, UpdateSourceRequest
 from next_epoch.schemas.enums import SourceType
 from next_epoch.schemas.base import generate_uuid7
+from next_epoch.tasks.ingestion import run_ingestion
 from sqlalchemy import select
 
 router = APIRouter()
@@ -147,8 +149,22 @@ async def refresh_source(
                 detail=f"Source {id} not found",
             )
 
-    # TODO: Queue actual refresh task
+    # Map source id to SourceType
+    source_type_map = {
+        "arxiv": SourceType.ARXIV,
+        "github": SourceType.GITHUB,
+    }
+    source_type = source_type_map.get(id)
+    if not source_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unknown source type: {id}",
+        )
+
     job_id = generate_uuid7()
+
+    # Run ingestion in background task
+    asyncio.create_task(run_ingestion(source_type))
 
     return {
         "message": f"Refresh triggered for source {id}",

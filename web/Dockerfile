@@ -3,12 +3,14 @@ FROM node:18-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+# Use China Alpine mirror (HTTP to avoid SSL issues)
+RUN sed -i 's|https://dl-cdn.alpinelinux.org|http://mirrors.aliyun.com|g' /etc/apk/repositories && \
+    apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy package files
 COPY package.json .npmrc ./
-RUN npm ci
+RUN npm install
 
 # Rebuild the source code only when needed
 FROM base AS builder

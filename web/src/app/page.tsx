@@ -120,8 +120,8 @@ export default function DashboardPage() {
     retry: false,
   });
 
-  // Use mock data if API is not available
-  const items = contentData?.data ?? mockContent;
+  // Use real data only - no mock fallback
+  const items = contentData?.data ?? [];
   const isApiAvailable = !!contentData;
 
   const stats = [

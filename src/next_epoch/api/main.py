@@ -10,6 +10,7 @@ from next_epoch import __version__
 from next_epoch.config import get_settings
 from next_epoch.api.routes import content, digests, health, runs, sources, fields
 from next_epoch.db.session import init_db, close_db
+from next_epoch.tasks.scheduler import start_scheduler, stop_scheduler
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -21,9 +22,11 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("Starting Next.Epoch API", version=__version__)
     await init_db()
+    start_scheduler()
     yield
     # Shutdown
     logger.info("Shutting down Next.Epoch API")
+    stop_scheduler()
     await close_db()
 
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Filter, X } from 'lucide-react';
@@ -22,6 +22,14 @@ const typeFilters = [
 ];
 
 export default function SearchPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse">Loading...</div>}>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+function SearchPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
