@@ -3,123 +3,34 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, FileText, Clock, ExternalLink } from 'lucide-react';
-import { getDigest } from '@/lib/api';
+import { ArrowLeft, Calendar, FileText, Clock, ExternalLink, Loader2, Sparkles, BookOpen, Code } from 'lucide-react';
+import { getDigest, getContentItem } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Digest, DigestSection, ContentItem } from '@/types';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
 import { SourceBadge } from '@/components/ui/SourceBadge';
 
-// Mock digest for demo
-const mockDigest: Digest = {
-  id: 'digest-1',
-  type: 'daily',
-  title: 'AI Frontier Daily - January 11, 2026',
-  summary:
-    'Today\'s highlights include breakthrough research on long-context transformers, new open-source agent frameworks, and significant advances in code generation models. The AI community saw three major paper releases from leading research labs, along with several trending repositories gaining significant traction.',
-  sections: [
-    {
-      title: 'Top Papers',
-      summary:
-        'Key research publications that are shaping the future of AI, focusing on efficiency and reasoning capabilities.',
-      items: [
-        {
-          id: '1',
-          type: 'paper',
-          source: 'arxiv',
-          title: 'Attention Is All You Need: Revisiting Transformers for Long-Range Dependencies',
-          summary:
-            'Breakthrough paper introducing more efficient attention mechanisms for processing longer sequences.',
-          url: 'https://arxiv.org/abs/2401.00001',
-          canonical_ref: 'arxiv:2401.00001',
-          published_at: new Date(Date.now() - 3600000).toISOString(),
-          discovered_at: new Date().toISOString(),
-          frontier_score: 0.92,
-          field_ids: ['llm'],
-          tags: ['transformers', 'attention'],
-          authors: [
-            { name: 'John Smith', affiliation: 'OpenAI' },
-            { name: 'Jane Doe', affiliation: 'Google DeepMind' },
-          ],
-        },
-        {
-          id: '2',
-          type: 'paper',
-          source: 'arxiv',
-          title: 'Chain-of-Thought Prompting Elicits Reasoning in Large Language Models',
-          summary:
-            'Demonstrates how step-by-step reasoning significantly improves LLM performance on complex tasks.',
-          url: 'https://arxiv.org/abs/2401.00002',
-          canonical_ref: 'arxiv:2401.00002',
-          published_at: new Date(Date.now() - 7200000).toISOString(),
-          discovered_at: new Date().toISOString(),
-          frontier_score: 0.85,
-          field_ids: ['llm', 'reasoning'],
-          tags: ['chain-of-thought', 'reasoning'],
-          authors: [{ name: 'Alice Chen', affiliation: 'Anthropic' }],
-        },
-      ],
-    },
-    {
-      title: 'Trending Repositories',
-      summary: 'Open-source projects gaining momentum in the AI community this week.',
-      items: [
-        {
-          id: '3',
-          type: 'repository',
-          source: 'github_trending',
-          title: 'llama-factory/LLaMA-Factory',
-          description:
-            'Unified framework for fine-tuning 100+ LLMs with efficient methods like LoRA and QLoRA.',
-          url: 'https://github.com/llama-factory/LLaMA-Factory',
-          canonical_ref: 'github:llama-factory/LLaMA-Factory',
-          published_at: new Date(Date.now() - 43200000).toISOString(),
-          discovered_at: new Date().toISOString(),
-          frontier_score: 0.78,
-          field_ids: ['llm'],
-          tags: ['fine-tuning', 'lora'],
-          owner: 'llama-factory',
-          repo_name: 'LLaMA-Factory',
-          language: 'Python',
-          stars: 15420,
-          forks: 2340,
-        },
-        {
-          id: '4',
-          type: 'repository',
-          source: 'github_trending',
-          title: 'microsoft/autogen',
-          description:
-            'A framework for building multi-agent conversational AI systems.',
-          url: 'https://github.com/microsoft/autogen',
-          canonical_ref: 'github:microsoft/autogen',
-          published_at: new Date(Date.now() - 86400000).toISOString(),
-          discovered_at: new Date().toISOString(),
-          frontier_score: 0.72,
-          field_ids: ['agents'],
-          tags: ['agents', 'multi-agent'],
-          owner: 'microsoft',
-          repo_name: 'autogen',
-          language: 'Python',
-          stars: 28500,
-          forks: 4200,
-        },
-      ],
-    },
-    {
-      title: 'Emerging Trends',
-      summary:
-        'Notable patterns and themes emerging from this week\'s content across the AI landscape.',
-      items: [],
-    },
-  ],
-  generated_at: new Date().toISOString(),
-  period_start: new Date(Date.now() - 86400000).toISOString(),
-  period_end: new Date().toISOString(),
-  item_count: 24,
-};
+function DigestItemCard({ itemId }: { itemId: string }) {
+  const { data: item, isLoading } = useQuery({
+    queryKey: ['content', itemId],
+    queryFn: () => getContentItem(itemId),
+    retry: false,
+  });
 
-function DigestItemCard({ item }: { item: ContentItem }) {
+  if (isLoading) {
+    return (
+      <div className="bg-gray-50 rounded-lg p-4 border border-gray-100 animate-pulse">
+        <div className="h-4 w-24 bg-gray-200 rounded mb-2" />
+        <div className="h-5 w-3/4 bg-gray-200 rounded mb-2" />
+        <div className="h-4 w-full bg-gray-200 rounded" />
+      </div>
+    );
+  }
+
+  if (!item) {
+    return null;
+  }
+
   return (
     <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -135,9 +46,9 @@ function DigestItemCard({ item }: { item: ContentItem }) {
         </Link>
       </h4>
 
-      {(item.summary || item.description) && (
+      {item.summary && (
         <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-          {item.summary || item.description}
+          {item.summary}
         </p>
       )}
 
@@ -162,16 +73,23 @@ function DigestItemCard({ item }: { item: ContentItem }) {
 }
 
 function DigestSectionComponent({ section }: { section: DigestSection }) {
+  const sectionIcon = section.name.toLowerCase().includes('paper')
+    ? <BookOpen className="w-5 h-5 text-blue-600" />
+    : <Code className="w-5 h-5 text-purple-600" />;
+
   return (
-    <div className="mb-8">
-      <h3 className="text-lg font-semibold text-gray-900 mb-2">{section.title}</h3>
+    <div className="mb-8 last:mb-0">
+      <div className="flex items-center gap-2 mb-3">
+        {sectionIcon}
+        <h3 className="text-lg font-semibold text-gray-900">{section.name}</h3>
+      </div>
       {section.summary && (
         <p className="text-gray-600 mb-4">{section.summary}</p>
       )}
-      {section.items.length > 0 ? (
+      {section.item_ids.length > 0 ? (
         <div className="space-y-3">
-          {section.items.map((item) => (
-            <DigestItemCard key={item.id} item={item} />
+          {section.item_ids.map((itemId) => (
+            <DigestItemCard key={itemId} itemId={itemId} />
           ))}
         </div>
       ) : (
@@ -193,15 +111,13 @@ export default function DigestDetailPage() {
     retry: false,
   });
 
-  const content = digest ?? mockDigest;
-
-  const typeColors = {
+  const typeColors: Record<string, string> = {
     daily: 'bg-blue-100 text-blue-700 border-blue-200',
     weekly: 'bg-purple-100 text-purple-700 border-purple-200',
     field: 'bg-green-100 text-green-700 border-green-200',
   };
 
-  const typeLabels = {
+  const typeLabels: Record<string, string> = {
     daily: 'Daily Digest',
     weekly: 'Weekly Digest',
     field: 'Field Digest',
@@ -209,12 +125,22 @@ export default function DigestDetailPage() {
 
   if (isLoading) {
     return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+      </div>
+    );
+  }
+
+  if (error || !digest) {
+    return (
       <div className="max-w-4xl mx-auto">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-gray-200 rounded" />
-          <div className="h-12 w-3/4 bg-gray-200 rounded" />
-          <div className="h-24 bg-gray-200 rounded" />
-          <div className="h-48 bg-gray-200 rounded" />
+        <Link href="/digests" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Digests
+        </Link>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-800">Digest not found</h2>
+          <p className="text-red-700 mt-2">The digest you're looking for doesn't exist or has been removed.</p>
         </div>
       </div>
     );
@@ -235,47 +161,56 @@ export default function DigestDetailPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <div className="flex items-center gap-3 mb-4">
           <span
-            className={`text-sm font-medium px-3 py-1 rounded border ${typeColors[content.type]}`}
+            className={`text-sm font-medium px-3 py-1 rounded border ${typeColors[digest.type] || typeColors.daily}`}
           >
-            {typeLabels[content.type]}
+            {typeLabels[digest.type] || digest.type}
           </span>
           <span className="text-sm text-gray-500 flex items-center gap-1">
             <Clock className="w-4 h-4" />
-            Generated {formatDate(content.generated_at)}
+            Generated {formatDate(digest.generated_at)}
           </span>
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-4">{content.title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">{digest.title}</h1>
 
         <div className="flex items-center gap-6 text-sm text-gray-600 mb-4">
           <span className="flex items-center gap-1.5">
             <FileText className="w-4 h-4" />
-            {content.item_count} items covered
+            {digest.stats.total_items} items covered
           </span>
           <span className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4" />
-            {formatDate(content.period_start)} - {formatDate(content.period_end)}
+            {formatDate(digest.period_start)} - {formatDate(digest.period_end)}
           </span>
         </div>
 
-        <p className="text-gray-700 leading-relaxed">{content.summary}</p>
+        <p className="text-gray-700 leading-relaxed">{digest.executive_summary}</p>
+
+        {/* Highlights */}
+        {digest.highlights && digest.highlights.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-yellow-500" />
+              <h3 className="text-sm font-semibold text-gray-700">Highlights</h3>
+            </div>
+            <ul className="space-y-1">
+              {digest.highlights.map((highlight, i) => (
+                <li key={i} className="text-sm text-gray-600 flex items-start gap-2">
+                  <span className="text-primary-500">•</span>
+                  {highlight}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* Sections */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        {content.sections.map((section, index) => (
+        {digest.sections.map((section, index) => (
           <DigestSectionComponent key={index} section={section} />
         ))}
       </div>
-
-      {/* Demo notice */}
-      {error && (
-        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm text-yellow-700">
-            Showing demo digest. Start the backend API for real data.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
