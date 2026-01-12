@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import './globals.css';
 import { Providers } from './providers';
-import { Header } from '@/components/layout/Header';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 export const metadata: Metadata = {
   title: 'Next.Epoch - AI Frontier Intelligence',
@@ -17,19 +16,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="font-sans">
+      <body className="font-sans bg-gray-50">
         <Providers>
-          <div className="min-h-screen flex flex-col">
-            <Header />
-            <div className="flex flex-1">
-              <Suspense fallback={<div className="w-64 bg-white border-r border-gray-200" />}>
-                <Sidebar />
-              </Suspense>
-              <main className="flex-1 p-6 overflow-auto">
-                {children}
-              </main>
+          <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="animate-pulse text-gray-500">Loading...</div>
             </div>
-          </div>
+          }>
+            <AppLayout>{children}</AppLayout>
+          </Suspense>
         </Providers>
       </body>
     </html>
