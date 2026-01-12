@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard,
   FileText,
@@ -14,8 +14,8 @@ import { cn } from '@/lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Papers', href: '/content?type=paper', icon: FileText },
-  { name: 'Repositories', href: '/content?type=repository', icon: GitBranch },
+  { name: 'Papers', href: '/content?type=paper', icon: FileText, queryKey: 'type', queryValue: 'paper' },
+  { name: 'Repositories', href: '/content?type=repository', icon: GitBranch, queryKey: 'type', queryValue: 'repository' },
   { name: 'Digests', href: '/digests', icon: Newspaper },
   { name: 'Fields', href: '/fields', icon: Tag },
 ];
@@ -30,13 +30,29 @@ const fields = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const isActiveLink = (item: typeof navigation[0]) => {
+    const basePath = item.href.split('?')[0];
+
+    // For links with query parameters, check both path and query
+    if (item.queryKey && item.queryValue) {
+      return pathname === basePath && searchParams.get(item.queryKey) === item.queryValue;
+    }
+
+    // For simple paths
+    if (item.href === '/') {
+      return pathname === '/';
+    }
+
+    return pathname === basePath || pathname.startsWith(basePath + '/');
+  };
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0">
       <nav className="p-4 space-y-1">
         {navigation.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/' && pathname.startsWith(item.href.split('?')[0]));
+          const isActive = isActiveLink(item);
 
           return (
             <Link
