@@ -1,11 +1,10 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, FileText, GitBranch, Clock, RefreshCw, Loader2 } from 'lucide-react';
+import { TrendingUp, FileText, GitBranch, RefreshCw, Loader2, Newspaper } from 'lucide-react';
 import { getContent } from '@/lib/api';
 import { ContentList } from '@/components/content/ContentList';
 import { Button } from '@/components/ui/Button';
-import { formatRelativeTime } from '@/lib/utils';
 
 function StatsSkeleton() {
   return (
@@ -46,10 +45,18 @@ export default function DashboardPage() {
     retry: false,
   });
 
+  // Fetch total count for news articles
+  const { data: newsData } = useQuery({
+    queryKey: ['content', 'news-count'],
+    queryFn: () => getContent({ type: 'article', per_page: 1 }),
+    retry: false,
+  });
+
   const items = contentData?.data ?? [];
   const isApiAvailable = !!contentData;
   const totalPapers = papersData?.pagination?.total_items ?? 0;
   const totalRepos = reposData?.pagination?.total_items ?? 0;
+  const totalNews = newsData?.pagination?.total_items ?? 0;
   const highImpactCount = items.filter((i) => i.frontier_score >= 0.7).length;
 
   const stats = [
@@ -66,16 +73,16 @@ export default function DashboardPage() {
       color: 'text-purple-600 bg-purple-100',
     },
     {
+      label: 'AI News',
+      value: totalNews,
+      icon: Newspaper,
+      color: 'text-indigo-600 bg-indigo-100',
+    },
+    {
       label: 'High Impact',
       value: highImpactCount,
       icon: TrendingUp,
       color: 'text-green-600 bg-green-100',
-    },
-    {
-      label: 'Last Updated',
-      value: formatRelativeTime(new Date()),
-      icon: Clock,
-      color: 'text-orange-600 bg-orange-100',
     },
   ];
 
@@ -87,7 +94,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">
             {isApiAvailable
-              ? 'Latest AI research and trending repositories'
+              ? 'Latest AI research, trending repositories, and news'
               : 'Connecting to backend...'}
           </p>
         </div>

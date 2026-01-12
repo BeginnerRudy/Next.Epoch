@@ -13,10 +13,13 @@ interface ContentCardProps {
 export function ContentCard({ item, showSummary = true }: ContentCardProps) {
   const isPaper = item.type === 'paper';
   const isRepo = item.type === 'repository';
+  const isArticle = item.type === 'article' || item.type === 'application' || item.type === 'case_study';
 
   // Tooltip text explaining what the time means
   const exactTime = formatDate(item.published_at);
   const timeTooltip = isPaper
+    ? `Published: ${exactTime}`
+    : isArticle
     ? `Published: ${exactTime}`
     : `Discovered from GitHub Trending: ${exactTime}`;
 

@@ -10,10 +10,15 @@ export function SourceBadge({ source, size = 'md' }: SourceBadgeProps) {
     switch (source) {
       case 'arxiv':
         return { label: 'arXiv', color: 'bg-red-100 text-red-700 border-red-200' };
+      case 'github':
       case 'github_trending':
         return { label: 'GitHub', color: 'bg-gray-100 text-gray-700 border-gray-200' };
       case 'hacker_news':
         return { label: 'HN', color: 'bg-orange-100 text-orange-700 border-orange-200' };
+      case 'venturebeat':
+        return { label: 'VentureBeat', color: 'bg-purple-100 text-purple-700 border-purple-200' };
+      case 'techcrunch':
+        return { label: 'TechCrunch', color: 'bg-green-100 text-green-700 border-green-200' };
       default:
         return { label: source, color: 'bg-blue-100 text-blue-700 border-blue-200' };
     }

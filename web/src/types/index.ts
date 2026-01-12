@@ -1,7 +1,7 @@
 // Content types matching backend schemas
 
-export type SourceType = 'arxiv' | 'github_trending' | 'hacker_news' | 'twitter' | 'rss';
-export type ContentType = 'paper' | 'repository' | 'article' | 'discussion' | 'release';
+export type SourceType = 'arxiv' | 'github' | 'github_trending' | 'hacker_news' | 'twitter' | 'rss' | 'venturebeat' | 'techcrunch';
+export type ContentType = 'paper' | 'repository' | 'article' | 'discussion' | 'release' | 'application' | 'case_study';
 export type DigestType = 'daily' | 'weekly' | 'field';
 
 export interface Author {
