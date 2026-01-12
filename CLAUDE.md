@@ -170,3 +170,72 @@ All MVP features implemented:
 - [x] Content detail with score breakdown
 - [x] Digests (daily/weekly)
 - [x] 104 tests passing
+
+## Docker Deployment (China Network)
+
+### Quick Start
+```bash
+docker compose up -d
+```
+
+### Services
+| Service | URL | Description |
+|---------|-----|-------------|
+| Web Dashboard | http://localhost:3000 | Next.js frontend |
+| API Docs | http://localhost:8000/docs | Swagger/OpenAPI |
+| API | http://localhost:8000/api/v1 | REST API |
+| PostgreSQL | localhost:5432 | Database |
+| Redis | localhost:6379 | Cache |
+
+### China Network Configuration
+The Dockerfiles are configured with China mirrors:
+- **Debian packages**: Aliyun mirror (`mirrors.aliyun.com`)
+- **PyPI**: Tsinghua mirror (`pypi.tuna.tsinghua.edu.cn`)
+- **Alpine packages**: Aliyun mirror
+- **Docker Hub**: Configured in `~/.docker/daemon.json`
+
+### Environment Variables
+All config uses `NEXT_EPOCH_` prefix (set in docker-compose.yaml):
+- `NEXT_EPOCH_DATABASE_URL` - PostgreSQL connection (async)
+- `NEXT_EPOCH_DATABASE_URL_SYNC` - PostgreSQL connection (sync, for migrations)
+- `NEXT_EPOCH_REDIS_URL` - Redis connection
+- `NEXT_EPOCH_LLM_API_KEY` - OpenAI/Anthropic API key
+
+### Useful Commands
+```bash
+# Trigger GitHub ingestion manually
+curl -X POST http://localhost:8000/api/v1/sources/github/refresh
+
+# Trigger arXiv ingestion (requires VPN in China)
+curl -X POST http://localhost:8000/api/v1/sources/arxiv/refresh
+
+# View ingestion runs
+curl http://localhost:8000/api/v1/runs
+
+# Check content count
+curl http://localhost:8000/api/v1/content
+```
+
+## Current Progress (Jan 2026)
+
+### Working
+- ✅ Docker Compose deployment with China mirrors
+- ✅ GitHub Trending ingestion (auto-runs every 60 minutes)
+- ✅ Scoring and ranking algorithm
+- ✅ REST API with all endpoints
+- ✅ Web dashboard showing real data
+
+### Known Issues / Next Steps
+1. **arXiv ingestion blocked in China** - Need to add HTTP proxy support to arXiv collector for China users
+2. **Docker mirror timeouts** - Intermittent issues with China Docker Hub mirrors; retry usually works
+3. **Web Dockerfile rebuild** - May fail due to Alpine mirror issues; use cached image when possible
+
+### To Enable arXiv in China
+Add proxy support to `src/next_epoch/ingestion/collectors/arxiv.py`:
+```python
+# Pass proxy to httpx client
+proxy = os.getenv("NEXT_EPOCH_HTTP_PROXY")
+if proxy:
+    self.client = httpx.AsyncClient(proxy=proxy, ...)
+```
+Then set `NEXT_EPOCH_HTTP_PROXY=http://host.docker.internal:7897` in docker-compose.yaml.
