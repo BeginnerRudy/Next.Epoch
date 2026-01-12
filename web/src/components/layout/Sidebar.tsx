@@ -20,12 +20,13 @@ const navigation = [
   { name: 'Fields', href: '/fields', icon: Tag },
 ];
 
+// Map field names to arXiv categories for filtering
 const fields = [
-  { id: 'llm', name: 'Large Language Models' },
-  { id: 'agents', name: 'AI Agents' },
-  { id: 'reasoning', name: 'Reasoning' },
-  { id: 'multimodal', name: 'Multimodal AI' },
-  { id: 'robotics', name: 'Robotics' },
+  { id: 'llm', name: 'Large Language Models', category: 'cs.CL' },
+  { id: 'agents', name: 'AI Agents', category: 'cs.AI' },
+  { id: 'vision', name: 'Computer Vision', category: 'cs.CV' },
+  { id: 'multimodal', name: 'Multimodal AI', category: 'cs.MM' },
+  { id: 'robotics', name: 'Robotics', category: 'cs.RO' },
 ];
 
 export function Sidebar() {
@@ -81,7 +82,7 @@ export function Sidebar() {
             {fields.map((field) => (
               <Link
                 key={field.id}
-                href={`/content?field=${field.id}`}
+                href={`/content?category=${field.category}`}
                 className="block px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors"
               >
                 {field.name}
