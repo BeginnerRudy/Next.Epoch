@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Next.Epoch** is an AI frontier intelligence platform—a continuously-running agent that tracks, curates, and summarizes cutting-edge AI research and development. It answers "what should I read today?" by surfacing high-impact, high-novelty content from arXiv, GitHub Trending, and other sources.
+**Next.Epoch** is an AI frontier intelligence platform—a continuously-running agent that tracks, curates, and summarizes cutting-edge AI research and development. It answers "what should I read today?" by surfacing high-impact, high-novelty content from arXiv, GitHub Trending, AI news sites, and other sources.
 
 ## Repository Structure
 
@@ -22,7 +22,7 @@ next-epoch/
 │       ├── app/             # Pages (Dashboard, Search, Content, Digests, Fields)
 │       ├── components/      # React components (UI, Layout)
 │       └── lib/             # API client & utilities
-├── tests/                   # Test suite (104 tests)
+├── tests/                   # Test suite (120+ tests)
 ├── alembic/                 # Database migrations
 ├── specs/                   # Specifications
 │   ├── SPEC.md             # Product spec
@@ -117,7 +117,7 @@ Key signals: `category_match`, `author_authority`, `has_code`, `stars_velocity`,
 - `src/next_epoch/config.py` - Environment configuration (incl. HTTP proxy)
 - `src/next_epoch/db/models.py` - SQLAlchemy database models
 - `src/next_epoch/intelligence/scorer.py` - Frontier score calculation
-- `src/next_epoch/ingestion/collectors/` - arXiv and GitHub collectors
+- `src/next_epoch/ingestion/collectors/` - arXiv, GitHub, and AI news collectors
 - `src/next_epoch/tasks/scheduler.py` - Background job scheduling
 - `src/next_epoch/tasks/digest.py` - Digest generation logic
 
@@ -177,13 +177,14 @@ Key signals: `category_match`, `author_authority`, `has_code`, `stars_velocity`,
 
 All MVP features implemented:
 - [x] arXiv + GitHub Trending ingestion
+- [x] AI news ingestion (VentureBeat, TechCrunch)
 - [x] Scoring algorithm with explainability
 - [x] REST API with all endpoints
 - [x] Next.js web dashboard
 - [x] Search with filters
 - [x] Content detail with score breakdown
 - [x] Digests (daily/weekly)
-- [x] 104 tests passing
+- [x] 120+ tests passing
 
 ## Recent Improvements (Jan 2026)
 
@@ -202,6 +203,23 @@ All MVP features implemented:
 - **Digest Generation**: Scheduled daily (6 AM) and weekly (Monday 7 AM)
 - **Content API**: Raw content details (abstract, authors, stars, etc.)
 - **API Proxy**: Next.js API route for production mode compatibility
+- **AI News Tracking**: VentureBeat and TechCrunch AI section ingestion
+
+## Content Sources
+
+| Source | Type | Content | Status |
+|--------|------|---------|--------|
+| arXiv | Research | AI/ML papers (cs.AI, cs.LG, cs.CL, etc.) | ✅ Active |
+| GitHub Trending | Code | AI-related trending repositories | ✅ Active |
+| VentureBeat AI | News | Enterprise AI, product launches, case studies | ✅ Active |
+| TechCrunch AI | News | AI startups, funding, product news | ⏸️ Available |
+
+### Content Types
+- `paper` - Research papers from arXiv
+- `repository` - GitHub repositories
+- `article` - General AI news articles
+- `application` - AI product launches and tools
+- `case_study` - Enterprise deployment stories
 
 ## Docker Deployment
 
@@ -236,16 +254,26 @@ All config uses `NEXT_EPOCH_` prefix (set in docker-compose.yaml):
 ### Useful Commands
 ```bash
 # Trigger GitHub ingestion manually
-curl -X POST http://localhost:8000/api/v1/sources/github_trending/refresh
+curl -X POST http://localhost:8000/api/v1/sources/github/refresh
 
 # Trigger arXiv ingestion (uses proxy in China)
 curl -X POST http://localhost:8000/api/v1/sources/arxiv/refresh
+
+# Trigger VentureBeat AI news ingestion
+curl -X POST http://localhost:8000/api/v1/sources/venturebeat/refresh
+
+# Trigger TechCrunch AI news ingestion
+curl -X POST http://localhost:8000/api/v1/sources/techcrunch/refresh
 
 # View ingestion runs
 curl http://localhost:8000/api/v1/runs
 
 # Check content count
 curl http://localhost:8000/api/v1/content
+
+# Filter by content type
+curl "http://localhost:8000/api/v1/content?type=article"
+curl "http://localhost:8000/api/v1/content?type=application"
 
 # Generate a digest manually
 curl http://localhost:8000/api/v1/digests/latest?type=daily
