@@ -9,8 +9,8 @@ Implements rule-based relevance scoring as per SPEC.md:
 import re
 from dataclasses import dataclass
 
-from next_epoch.schemas.content import ContentItem, Paper, Repository, Signal
-from next_epoch.schemas.enums import ContentType, SourceType
+from next_epoch.schemas.content import Article, ContentItem, Paper, Repository, Signal
+from next_epoch.schemas.enums import SourceType
 
 # AI-related keywords for relevance scoring
 AI_KEYWORDS = {
@@ -21,6 +21,22 @@ AI_KEYWORDS = {
     "bert", "chatgpt", "claude", "gemini", "llama", "mistral", "whisper",
     "stable diffusion", "multimodal", "vision-language", "reasoning",
     "alignment", "rlhf", "prompt", "chain-of-thought", "few-shot",
+}
+
+# Application/deployment keywords for news articles
+APPLICATION_KEYWORDS = {
+    "launches", "announces", "deploys", "releases", "unveils", "introduces",
+    "powered by", "uses ai", "ai-powered", "llm-powered", "enterprise",
+    "production", "customers", "users", "adoption", "implementation",
+    "case study", "deployment", "integration", "api", "plugin", "app",
+}
+
+# Known AI companies for importance scoring
+AI_COMPANIES = {
+    "openai", "anthropic", "google", "deepmind", "meta", "microsoft",
+    "nvidia", "amazon", "aws", "ibm", "salesforce", "adobe", "oracle",
+    "hugging face", "stability ai", "midjourney", "cohere", "replicate",
+    "notion", "stripe", "shopify", "slack", "zoom", "github", "copilot",
 }
 
 # Relevant arXiv categories
@@ -211,7 +227,82 @@ def score_repository_relevance(repo: Repository) -> RelevanceResult:
     )
 
 
-def score_content_relevance(content: ContentItem, raw_content: Paper | Repository | None = None) -> RelevanceResult:
+def calculate_application_score(text: str) -> float:
+    """Calculate score for AI application/deployment content.
+
+    Returns a score between 0 and 1 based on application-related keywords.
+    """
+    if not text:
+        return 0.0
+
+    text_lower = text.lower()
+    matches = 0
+
+    # Check for application keywords
+    for keyword in APPLICATION_KEYWORDS:
+        if keyword in text_lower:
+            matches += 1
+
+    # Check for AI company mentions
+    for company in AI_COMPANIES:
+        if company in text_lower:
+            matches += 1
+
+    # Normalize: 0 matches = 0, 4+ matches = 1.0
+    return min(matches / 4.0, 1.0)
+
+
+def score_article_relevance(article: Article) -> RelevanceResult:
+    """Calculate relevance score for a news article."""
+    signals = []
+
+    # Keyword density in title + content (weight 0.3)
+    text = f"{article.title} {article.excerpt} {article.content}"
+    keyword_density = calculate_keyword_density(text)
+    signals.append(Signal(
+        key="keyword_density",
+        value=keyword_density,
+        weight=0.3,
+        source="title_content",
+    ))
+
+    # Application/deployment score (weight 0.4)
+    app_score = calculate_application_score(text)
+    signals.append(Signal(
+        key="application_score",
+        value=app_score,
+        weight=0.4,
+        source="application_keywords",
+    ))
+
+    # Source relevance (weight 0.3)
+    source_relevance = SOURCE_RELEVANCE.get(article.source, 0.6)
+    signals.append(Signal(
+        key="source_relevance",
+        value=source_relevance,
+        weight=0.3,
+        source="source_type",
+    ))
+
+    # Calculate weighted score
+    score = (
+        0.3 * keyword_density +
+        0.4 * app_score +
+        0.3 * source_relevance
+    )
+
+    score = max(0.0, min(1.0, score))
+
+    return RelevanceResult(
+        score=score,
+        category_match=app_score,  # Use app_score as category equivalent
+        keyword_density=keyword_density,
+        source_relevance=source_relevance,
+        signals=signals,
+    )
+
+
+def score_content_relevance(content: ContentItem, raw_content: Paper | Repository | Article | None = None) -> RelevanceResult:
     """Calculate relevance score for a ContentItem.
 
     If raw_content is provided, uses source-specific scoring.
@@ -222,6 +313,8 @@ def score_content_relevance(content: ContentItem, raw_content: Paper | Repositor
             return score_paper_relevance(raw_content)
         elif isinstance(raw_content, Repository):
             return score_repository_relevance(raw_content)
+        elif isinstance(raw_content, Article):
+            return score_article_relevance(raw_content)
 
     # Generic scoring for ContentItem
     signals = []

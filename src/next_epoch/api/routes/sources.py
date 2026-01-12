@@ -35,6 +35,22 @@ DEFAULT_SOURCES = [
         "refresh_interval": 60,
         "status": "active",
     },
+    {
+        "id": "venturebeat",
+        "type": "venturebeat",
+        "name": "VentureBeat AI",
+        "enabled": True,
+        "refresh_interval": 120,  # 2 hours for news
+        "status": "active",
+    },
+    {
+        "id": "techcrunch",
+        "type": "techcrunch",
+        "name": "TechCrunch AI",
+        "enabled": False,  # Disabled by default, enable when needed
+        "refresh_interval": 120,
+        "status": "active",
+    },
 ]
 
 
@@ -153,6 +169,8 @@ async def refresh_source(
     source_type_map = {
         "arxiv": SourceType.ARXIV,
         "github": SourceType.GITHUB,
+        "venturebeat": SourceType.VENTUREBEAT,
+        "techcrunch": SourceType.TECHCRUNCH,
     }
     source_type = source_type_map.get(id)
     if not source_type:

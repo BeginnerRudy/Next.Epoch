@@ -127,6 +127,31 @@ class RepositoryModel(Base):
     )
 
 
+class ArticleModel(Base):
+    """News article table (raw content from AI news sites)."""
+
+    __tablename__ = "articles"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    external_id: Mapped[str | None] = mapped_column(String(100), index=True)
+    canonical_ref: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    author: Mapped[str | None] = mapped_column(String(255))
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    excerpt: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    image_url: Mapped[str | None] = mapped_column(String(2048))
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+    __table_args__ = (
+        Index("ix_articles_published_at_desc", published_at.desc()),
+        Index("ix_articles_tags", tags, postgresql_using="gin"),
+    )
+
+
 class TaxonomyFieldModel(Base):
     """Field taxonomy table."""
 

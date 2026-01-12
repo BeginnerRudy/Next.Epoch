@@ -24,6 +24,8 @@ class ContentType(str, Enum):
     REPOSITORY = "repository"
     SOCIAL = "social"
     ANNOUNCEMENT = "announcement"
+    APPLICATION = "application"  # AI-powered products and tools
+    CASE_STUDY = "case_study"  # Real-world deployment stories
 
 
 class DigestType(str, Enum):

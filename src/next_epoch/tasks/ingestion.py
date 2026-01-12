@@ -1,24 +1,32 @@
 """Ingestion service that orchestrates the full ingestion pipeline."""
 
 from dataclasses import dataclass
-from datetime import datetime
 
 import structlog
 
 from next_epoch.config import get_settings
-from next_epoch.db.models import ContentItemModel, PaperModel, RepositoryModel, ProcessingRunModel
-from next_epoch.db.session import get_session_context
+from next_epoch.db.models import (
+    ArticleModel,
+    ContentItemModel,
+    PaperModel,
+    ProcessingRunModel,
+    RepositoryModel,
+)
 from next_epoch.db.repositories import (
     ContentItemRepository,
     PaperRepository,
-    RepositoryRepository,
     ProcessingRunRepository,
+    RepositoryRepository,
 )
-from next_epoch.ingestion.collectors import ArxivCollector, GitHubTrendingCollector
-from next_epoch.ingestion.normalizers import normalize_paper, normalize_repository
+from next_epoch.db.session import get_session_context
+from next_epoch.ingestion.collectors import AINewsCollector, ArxivCollector, GitHubTrendingCollector
+from next_epoch.ingestion.normalizers import (
+    normalize_article,
+    normalize_paper,
+    normalize_repository,
+)
 from next_epoch.intelligence.scorer import update_content_scores
-from next_epoch.schemas.content import Paper, Repository
-from next_epoch.schemas.enums import RunType, RunStatus, SourceType
+from next_epoch.schemas.enums import RunType, SourceType
 
 logger = structlog.get_logger()
 settings = get_settings()
@@ -58,11 +66,13 @@ class IngestionService:
     def __init__(self):
         self.arxiv_collector = ArxivCollector()
         self.github_collector = GitHubTrendingCollector()
+        self.news_collector = AINewsCollector()
 
     async def close(self):
         """Close collectors."""
         await self.arxiv_collector.close()
         await self.github_collector.close()
+        await self.news_collector.close()
 
     async def ingest_arxiv(self, max_results: int | None = None) -> IngestionStats:
         """Ingest papers from arXiv.
@@ -271,6 +281,109 @@ class IngestionService:
 
         return stats
 
+    async def ingest_news(self, source: SourceType = SourceType.VENTUREBEAT) -> IngestionStats:
+        """Ingest articles from AI news sources.
+
+        Args:
+            source: News source to ingest (VENTUREBEAT or TECHCRUNCH)
+
+        Returns:
+            IngestionStats with results
+        """
+        stats = IngestionStats(source=source.value)
+
+        try:
+            # Fetch articles from news source
+            logger.info("Starting news ingestion", source=source.value)
+            articles = await self.news_collector.collect(sources=[source])
+            stats.items_fetched = len(articles)
+
+            async with get_session_context() as session:
+                content_repo = ContentItemRepository(session)
+
+                for article in articles:
+                    try:
+                        # Check for duplicate
+                        existing = await content_repo.get_by_canonical_ref(article.canonical_ref)
+                        if existing:
+                            stats.items_skipped += 1
+                            continue
+
+                        # Normalize to ContentItem
+                        content = normalize_article(article)
+
+                        # Score the content
+                        scored_content = update_content_scores(content, article)
+
+                        # Filter by relevance threshold (lower threshold for news)
+                        news_threshold = max(settings.relevance_threshold - 0.1, 0.2)
+                        if scored_content.relevance_score < news_threshold:
+                            stats.items_filtered += 1
+                            continue
+
+                        # Store raw article
+                        article_model = ArticleModel(
+                            id=article.id,
+                            source=source.value,
+                            external_id=article.external_id,
+                            canonical_ref=article.canonical_ref,
+                            title=article.title,
+                            author=article.author,
+                            content=article.content,
+                            excerpt=article.excerpt,
+                            url=article.url,
+                            image_url=article.image_url,
+                            published_at=article.published_at,
+                            tags=article.tags,
+                        )
+                        session.add(article_model)
+
+                        # Store content item
+                        content_model = ContentItemModel(
+                            id=scored_content.id,
+                            type=scored_content.type.value,
+                            source=scored_content.source.value,
+                            canonical_ref=article.canonical_ref,
+                            title=scored_content.title,
+                            summary=scored_content.summary,
+                            url=scored_content.url,
+                            relevance_score=scored_content.relevance_score,
+                            importance_score=scored_content.importance_score,
+                            novelty_score=scored_content.novelty_score,
+                            frontier_score=scored_content.frontier_score,
+                            score_breakdown=scored_content.score_breakdown.model_dump(mode='json') if scored_content.score_breakdown else None,
+                            signals=[s.model_dump(mode='json') for s in scored_content.signals],
+                            provenance=scored_content.provenance.model_dump(mode='json') if scored_content.provenance else None,
+                            tags=scored_content.tags,
+                            categories=scored_content.categories,
+                            published_at=scored_content.published_at,
+                            processed_at=scored_content.processed_at,
+                            raw_content_type="article",
+                            raw_content_id=article.id,
+                        )
+                        session.add(content_model)
+
+                        stats.items_new += 1
+
+                    except Exception as e:
+                        logger.error("Failed to process article", url=article.url, error=str(e))
+                        stats.errors.append(f"Article {article.url}: {str(e)}")
+
+            logger.info(
+                "News ingestion complete",
+                source=source.value,
+                fetched=stats.items_fetched,
+                new=stats.items_new,
+                skipped=stats.items_skipped,
+                filtered=stats.items_filtered,
+            )
+
+        except Exception as e:
+            logger.error("News ingestion failed", source=source.value, error=str(e))
+            stats.errors.append(str(e))
+
+        return stats
+
     async def ingest_all(self) -> dict[str, IngestionStats]:
         """Ingest from all sources.
 
@@ -284,6 +397,9 @@ class IngestionService:
 
         # Ingest GitHub
         results["github"] = await self.ingest_github()
+
+        # Ingest VentureBeat AI news
+        results["venturebeat"] = await self.ingest_news(SourceType.VENTUREBEAT)
 
         return results
 
@@ -315,6 +431,12 @@ async def run_ingestion(source: SourceType | None = None) -> ProcessingRunModel:
             elif source == SourceType.GITHUB:
                 stats = await service.ingest_github()
                 all_stats = {"github": stats.to_dict()}
+            elif source == SourceType.VENTUREBEAT:
+                stats = await service.ingest_news(SourceType.VENTUREBEAT)
+                all_stats = {"venturebeat": stats.to_dict()}
+            elif source == SourceType.TECHCRUNCH:
+                stats = await service.ingest_news(SourceType.TECHCRUNCH)
+                all_stats = {"techcrunch": stats.to_dict()}
             else:
                 results = await service.ingest_all()
                 all_stats = {k: v.to_dict() for k, v in results.items()}

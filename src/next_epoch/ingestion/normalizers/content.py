@@ -5,17 +5,23 @@ from datetime import datetime
 import structlog
 
 from next_epoch.schemas.content import (
+    Article,
     ContentItem,
     ContentProvenance,
     Paper,
     Repository,
-    FieldRef,
 )
 from next_epoch.schemas.enums import ContentType, SourceType
 
 logger = structlog.get_logger()
 
 PARSER_VERSION = "1.0.0"
+
+# Source to URL mapping for provenance
+SOURCE_URLS = {
+    SourceType.VENTUREBEAT: "https://venturebeat.com/category/ai/",
+    SourceType.TECHCRUNCH: "https://techcrunch.com/category/artificial-intelligence/",
+}
 
 
 def normalize_paper(paper: Paper) -> ContentItem:
@@ -98,11 +104,77 @@ def normalize_repository(repo: Repository) -> ContentItem:
     )
 
 
-def normalize_content(raw_content: Paper | Repository) -> ContentItem:
+def normalize_article(article: Article) -> ContentItem:
+    """Normalize an Article into a ContentItem."""
+    # Build provenance
+    source_url = SOURCE_URLS.get(article.source, article.url)
+    provenance = ContentProvenance(
+        fetched_at=article.created_at or datetime.utcnow(),
+        fetched_from=source_url,
+        parser="news_normalizer",
+        parser_version=PARSER_VERSION,
+        content_hash=None,
+        language="en",
+    )
+
+    # Use excerpt as summary if available
+    summary = article.excerpt[:500] if article.excerpt else None
+
+    # Determine content type based on keywords in title/content
+    content_type = _determine_article_type(article)
+
+    return ContentItem(
+        type=content_type,
+        source=article.source,
+        title=article.title,
+        summary=summary,
+        url=article.url,
+        relevance_score=0.0,  # Will be set by scorer
+        importance_score=0.0,
+        novelty_score=None,
+        frontier_score=None,
+        tags=article.tags,
+        categories=["ai-applications"],  # Default category for news
+        published_at=article.published_at,
+        processed_at=datetime.utcnow(),
+        fields=[],
+        signals=[],
+        provenance=provenance,
+        raw_content_type="article",
+        raw_content_id=article.id,
+    )
+
+
+def _determine_article_type(article: Article) -> ContentType:
+    """Determine the most appropriate ContentType for an article.
+
+    - APPLICATION: Product launches, tool announcements, AI-powered apps
+    - CASE_STUDY: Enterprise deployments, industry adoption stories
+    - ARTICLE: General AI news and analysis
+    """
+    text = f"{article.title} {article.excerpt}".lower()
+
+    # Check for product/application keywords
+    app_keywords = ["launches", "announces", "unveils", "releases", "app", "tool", "product", "plugin", "api"]
+    if any(kw in text for kw in app_keywords):
+        return ContentType.APPLICATION
+
+    # Check for case study/deployment keywords
+    case_keywords = ["case study", "deploys", "uses ai", "enterprise", "customers use", "implemented", "adoption"]
+    if any(kw in text for kw in case_keywords):
+        return ContentType.CASE_STUDY
+
+    # Default to general article
+    return ContentType.ARTICLE
+
+
+def normalize_content(raw_content: Paper | Repository | Article) -> ContentItem:
     """Normalize any raw content type to ContentItem."""
     if isinstance(raw_content, Paper):
         return normalize_paper(raw_content)
     elif isinstance(raw_content, Repository):
         return normalize_repository(raw_content)
+    elif isinstance(raw_content, Article):
+        return normalize_article(raw_content)
     else:
         raise ValueError(f"Unknown content type: {type(raw_content)}")

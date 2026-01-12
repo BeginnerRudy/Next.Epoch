@@ -15,8 +15,7 @@ Rule-based signals:
 import re
 from dataclasses import dataclass
 
-from next_epoch.schemas.content import ContentItem, Paper, Repository, Signal
-from next_epoch.schemas.enums import ContentType
+from next_epoch.schemas.content import Article, ContentItem, Paper, Repository, Signal
 
 # Known AI labs and institutions for authority scoring
 KNOWN_LABS = {
@@ -24,6 +23,14 @@ KNOWN_LABS = {
     "nvidia", "stanford", "mit", "berkeley", "cmu", "carnegie mellon",
     "harvard", "princeton", "oxford", "cambridge", "tsinghua", "peking",
     "allen institute", "ai2", "fair", "brain", "research",
+}
+
+# Known AI companies for article importance
+AI_COMPANIES = {
+    "openai", "anthropic", "google", "deepmind", "meta", "microsoft",
+    "nvidia", "amazon", "aws", "ibm", "salesforce", "adobe", "oracle",
+    "hugging face", "stability ai", "midjourney", "cohere", "replicate",
+    "notion", "stripe", "shopify", "slack", "zoom", "github",
 }
 
 # Patterns for detecting code/dataset mentions
@@ -299,9 +306,101 @@ def score_repository_importance(repo: Repository) -> ImportanceResult:
     )
 
 
+def score_article_importance(article: Article) -> ImportanceResult:
+    """Calculate importance score for a news article.
+
+    Importance signals for articles:
+    - company_mention: Major AI company mentioned (0.35)
+    - impact_indicators: Metrics like users, revenue, adoption (0.25)
+    - recency: Recent news is more important (0.20)
+    - content_depth: Length and detail of article (0.20)
+    """
+    signals = []
+    explanations = []
+    text = f"{article.title} {article.excerpt} {article.content}".lower()
+
+    # Company mention score (weight 0.35)
+    mentioned_companies = []
+    for company in AI_COMPANIES:
+        if company in text:
+            mentioned_companies.append(company)
+
+    company_score = min(len(mentioned_companies) / 2.0, 1.0)  # 2+ companies = full score
+    signals.append(Signal(
+        key="company_mention",
+        value=company_score,
+        weight=0.35,
+        source="article_content",
+    ))
+    if mentioned_companies:
+        explanations.append(f"mentions {', '.join(mentioned_companies[:2])}")
+
+    # Impact indicators (weight 0.25)
+    impact_patterns = [
+        r"\d+\s*million\s*(users|customers)",
+        r"\d+\s*billion",
+        r"\d+%\s*(increase|growth|improvement)",
+        r"\$\d+",
+        r"enterprise",
+        r"production",
+        r"scale",
+    ]
+    impact_count = sum(1 for p in impact_patterns if re.search(p, text))
+    impact_score = min(impact_count / 3.0, 1.0)  # 3+ impact mentions = full score
+    signals.append(Signal(
+        key="impact_indicators",
+        value=impact_score,
+        weight=0.25,
+        source="article_content",
+    ))
+    if impact_count >= 2:
+        explanations.append("significant impact metrics")
+
+    # Recency score (weight 0.20) - news is time-sensitive
+    # For now, give full recency score (actual implementation would check date)
+    recency_score = 0.8  # Assume recent since we just collected it
+    signals.append(Signal(
+        key="recency",
+        value=recency_score,
+        weight=0.20,
+        source="published_date",
+    ))
+
+    # Content depth (weight 0.20) - proxy via content length
+    content_length = len(article.content or "")
+    depth_score = min(content_length / 500, 1.0)  # 500+ chars = full score
+    signals.append(Signal(
+        key="content_depth",
+        value=depth_score,
+        weight=0.20,
+        source="content_length",
+    ))
+
+    # Calculate rule-based score
+    rule_score = (
+        0.35 * company_score +
+        0.25 * impact_score +
+        0.20 * recency_score +
+        0.20 * depth_score
+    )
+
+    llm_score = None
+    final_score = rule_score
+
+    explanation = "High importance: " + ", ".join(explanations) if explanations else "Standard news article"
+
+    return ImportanceResult(
+        score=max(0.0, min(1.0, final_score)),
+        rule_score=rule_score,
+        llm_score=llm_score,
+        signals=signals,
+        explanation=explanation,
+    )
+
+
 def score_content_importance(
     content: ContentItem,
-    raw_content: Paper | Repository | None = None
+    raw_content: Paper | Repository | Article | None = None
 ) -> ImportanceResult:
     """Calculate importance score for a ContentItem."""
     if raw_content:
@@ -309,6 +408,8 @@ def score_content_importance(
             return score_paper_importance(raw_content)
         elif isinstance(raw_content, Repository):
             return score_repository_importance(raw_content)
+        elif isinstance(raw_content, Article):
+            return score_article_importance(raw_content)
 
     # Generic scoring
     signals = []

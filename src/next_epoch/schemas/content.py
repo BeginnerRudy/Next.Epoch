@@ -108,6 +108,25 @@ class Article(BaseSchema):
     created_at: datetime = PydanticField(default_factory=datetime.utcnow)
 
 
+class Application(BaseSchema):
+    """AI-powered product or tool (apps, plugins, services)."""
+
+    id: str = PydanticField(default_factory=generate_uuid7)
+    source: SourceType
+    external_id: str | None = None
+    canonical_ref: str = PydanticField(..., description="Stable dedupe key (e.g., 'app:company/product')")
+    name: str = PydanticField(..., description="Product/tool name")
+    description: str
+    url: str
+    company: str | None = PydanticField(None, description="Company or creator name")
+    category: str | None = PydanticField(None, description="App category (chatbot, automation, analytics, etc.)")
+    use_case: str | None = PydanticField(None, description="Target use case (enterprise, consumer, developer)")
+    published_at: datetime
+    image_url: str | None = None
+    tags: list[str] = PydanticField(default_factory=list)
+    created_at: datetime = PydanticField(default_factory=datetime.utcnow)
+
+
 class FieldRef(BaseSchema):
     """Reference to a field with confidence score."""
 
