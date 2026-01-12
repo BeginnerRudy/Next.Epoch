@@ -16,11 +16,11 @@ next-epoch/
 │   ├── ingestion/           # Source collectors & normalizers
 │   ├── intelligence/        # Scoring & summarization
 │   ├── schemas/             # Pydantic models
-│   └── tasks/               # Background job scheduling
+│   └── tasks/               # Background job scheduling (incl. digest generation)
 ├── web/                     # Next.js frontend
 │   └── src/
-│       ├── app/             # Pages (Dashboard, Search, Content, Digests)
-│       ├── components/      # React components
+│       ├── app/             # Pages (Dashboard, Search, Content, Digests, Fields)
+│       ├── components/      # React components (UI, Layout)
 │       └── lib/             # API client & utilities
 ├── tests/                   # Test suite (104 tests)
 ├── alembic/                 # Database migrations
@@ -32,6 +32,14 @@ next-epoch/
 ```
 
 ## Running the Application
+
+### Docker (Recommended)
+
+```bash
+docker compose up -d
+# Web UI: http://localhost:3000
+# API Docs: http://localhost:8000/docs
+```
 
 ### Backend (Python/FastAPI)
 
@@ -106,16 +114,22 @@ Key signals: `category_match`, `author_authority`, `has_code`, `stars_velocity`,
 
 ### Backend
 - `src/next_epoch/api/main.py` - FastAPI application entry point
-- `src/next_epoch/config.py` - Environment configuration
+- `src/next_epoch/config.py` - Environment configuration (incl. HTTP proxy)
 - `src/next_epoch/db/models.py` - SQLAlchemy database models
 - `src/next_epoch/intelligence/scorer.py` - Frontier score calculation
 - `src/next_epoch/ingestion/collectors/` - arXiv and GitHub collectors
 - `src/next_epoch/tasks/scheduler.py` - Background job scheduling
+- `src/next_epoch/tasks/digest.py` - Digest generation logic
 
 ### Frontend
-- `web/src/app/page.tsx` - Dashboard page
-- `web/src/app/search/page.tsx` - Search page
+- `web/src/app/page.tsx` - Dashboard page with stats and top content
+- `web/src/app/search/page.tsx` - Search page with filters
+- `web/src/app/content/page.tsx` - Content list with pagination
 - `web/src/app/content/[id]/page.tsx` - Content detail page
+- `web/src/app/digests/page.tsx` - Digests list page
+- `web/src/app/fields/page.tsx` - Fields page with category filtering
+- `web/src/components/layout/` - Header, Sidebar, AppLayout (responsive)
+- `web/src/components/ui/` - Reusable UI components (Button, Pagination, etc.)
 - `web/src/lib/api.ts` - API client
 
 ## Common Tasks
@@ -171,7 +185,25 @@ All MVP features implemented:
 - [x] Digests (daily/weekly)
 - [x] 104 tests passing
 
-## Docker Deployment (China Network)
+## Recent Improvements (Jan 2026)
+
+### Frontend Enhancements
+- **Dashboard**: Loading skeletons, real-time stats from API, improved refresh button
+- **Search**: Advanced filters (category, sort options), expandable filter panel
+- **Content Pages**: Pagination component, sorted by frontier score
+- **Content Detail**: Rich UI showing abstract, authors, stars, score breakdown
+- **Digests**: Sections with paper/repo items, highlights, executive summary
+- **Fields**: Category-based filtering (cs.AI, cs.CL, cs.CV, etc.)
+- **Mobile Responsive**: Hamburger menu, sliding sidebar, mobile search bar
+- **Error Pages**: Custom 404 and error boundary pages
+
+### Backend Enhancements
+- **arXiv Proxy**: HTTP proxy support for China network access
+- **Digest Generation**: Scheduled daily (6 AM) and weekly (Monday 7 AM)
+- **Content API**: Raw content details (abstract, authors, stars, etc.)
+- **API Proxy**: Next.js API route for production mode compatibility
+
+## Docker Deployment
 
 ### Quick Start
 ```bash
@@ -191,7 +223,6 @@ docker compose up -d
 The Dockerfiles are configured with China mirrors:
 - **Debian packages**: Aliyun mirror (`mirrors.aliyun.com`)
 - **PyPI**: Tsinghua mirror (`pypi.tuna.tsinghua.edu.cn`)
-- **Alpine packages**: Aliyun mirror
 - **Docker Hub**: Configured in `~/.docker/daemon.json`
 
 ### Environment Variables
@@ -200,13 +231,14 @@ All config uses `NEXT_EPOCH_` prefix (set in docker-compose.yaml):
 - `NEXT_EPOCH_DATABASE_URL_SYNC` - PostgreSQL connection (sync, for migrations)
 - `NEXT_EPOCH_REDIS_URL` - Redis connection
 - `NEXT_EPOCH_LLM_API_KEY` - OpenAI/Anthropic API key
+- `NEXT_EPOCH_HTTP_PROXY` - HTTP proxy for arXiv access (China)
 
 ### Useful Commands
 ```bash
 # Trigger GitHub ingestion manually
-curl -X POST http://localhost:8000/api/v1/sources/github/refresh
+curl -X POST http://localhost:8000/api/v1/sources/github_trending/refresh
 
-# Trigger arXiv ingestion (requires VPN in China)
+# Trigger arXiv ingestion (uses proxy in China)
 curl -X POST http://localhost:8000/api/v1/sources/arxiv/refresh
 
 # View ingestion runs
@@ -214,28 +246,12 @@ curl http://localhost:8000/api/v1/runs
 
 # Check content count
 curl http://localhost:8000/api/v1/content
+
+# Generate a digest manually
+curl http://localhost:8000/api/v1/digests/latest?type=daily
 ```
 
-## Current Progress (Jan 2026)
+## Known Issues
 
-### Working
-- ✅ Docker Compose deployment with China mirrors
-- ✅ GitHub Trending ingestion (auto-runs every 60 minutes)
-- ✅ Scoring and ranking algorithm
-- ✅ REST API with all endpoints
-- ✅ Web dashboard showing real data
-
-### Known Issues / Next Steps
-1. **arXiv ingestion blocked in China** - Need to add HTTP proxy support to arXiv collector for China users
-2. **Docker mirror timeouts** - Intermittent issues with China Docker Hub mirrors; retry usually works
-3. **Web Dockerfile rebuild** - May fail due to Alpine mirror issues; use cached image when possible
-
-### To Enable arXiv in China
-Add proxy support to `src/next_epoch/ingestion/collectors/arxiv.py`:
-```python
-# Pass proxy to httpx client
-proxy = os.getenv("NEXT_EPOCH_HTTP_PROXY")
-if proxy:
-    self.client = httpx.AsyncClient(proxy=proxy, ...)
-```
-Then set `NEXT_EPOCH_HTTP_PROXY=http://host.docker.internal:7897` in docker-compose.yaml.
+1. **Docker mirror timeouts** - Intermittent issues with China Docker Hub mirrors; retry usually works
+2. **arXiv rate limiting** - arXiv API has rate limits; ingestion may fail if too frequent
