@@ -1,12 +1,13 @@
 """Content API endpoints."""
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlalchemy import select
 
 from next_epoch.api.deps import ApiKey, ContentRepo, DbSession
-from next_epoch.db.models import ContentItemModel, FeedbackModel
+from next_epoch.db.models import ContentItemModel, FeedbackModel, PaperModel, RepositoryModel
 from next_epoch.schemas.content import ContentItem, ScoreBreakdown, Signal, ContentProvenance
 from next_epoch.schemas.enums import ContentType, SourceType, FeedbackKind
 from next_epoch.schemas.feedback import CreateFeedbackRequest, Feedback
@@ -16,7 +17,7 @@ from next_epoch.schemas.base import generate_uuid7
 router = APIRouter()
 
 
-def model_to_schema(model: ContentItemModel) -> ContentItem:
+def model_to_schema(model: ContentItemModel, raw_content: dict[str, Any] | None = None) -> ContentItem:
     """Convert database model to Pydantic schema."""
     # Parse score breakdown if present
     score_breakdown = None
@@ -33,7 +34,8 @@ def model_to_schema(model: ContentItemModel) -> ContentItem:
     if model.provenance:
         provenance = ContentProvenance(**model.provenance)
 
-    return ContentItem(
+    # Build base content item
+    content = ContentItem(
         id=model.id,
         type=ContentType(model.type),
         source=SourceType(model.source),
@@ -54,6 +56,12 @@ def model_to_schema(model: ContentItemModel) -> ContentItem:
         raw_content_type=model.raw_content_type,
         raw_content_id=model.raw_content_id,
     )
+
+    # Add raw content details if provided
+    if raw_content:
+        content.raw_content = raw_content
+
+    return content
 
 
 @router.get("/content")
@@ -137,15 +145,51 @@ async def get_content(
     id: str,
     _api_key: ApiKey,
     repo: ContentRepo,
+    session: DbSession,
 ) -> ContentItem:
-    """Get a single content item by ID."""
+    """Get a single content item by ID, including raw content details."""
     item = await repo.get_by_id(id)
     if not item:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Content item {id} not found",
         )
-    return model_to_schema(item)
+
+    # Fetch raw content if available
+    raw_content = None
+    if item.raw_content_id:
+        if item.raw_content_type == "paper":
+            result = await session.execute(
+                select(PaperModel).where(PaperModel.id == item.raw_content_id)
+            )
+            paper = result.scalar_one_or_none()
+            if paper:
+                raw_content = {
+                    "abstract": paper.abstract,
+                    "authors": paper.authors,
+                    "pdf_url": paper.pdf_url,
+                    "external_id": paper.external_id,
+                }
+        elif item.raw_content_type == "repository":
+            result = await session.execute(
+                select(RepositoryModel).where(RepositoryModel.id == item.raw_content_id)
+            )
+            repo_model = result.scalar_one_or_none()
+            if repo_model:
+                raw_content = {
+                    "description": repo_model.description,
+                    "owner": repo_model.owner,
+                    "name": repo_model.name,
+                    "full_name": repo_model.full_name,
+                    "stars": repo_model.stars,
+                    "forks": repo_model.forks,
+                    "language": repo_model.language,
+                    "topics": repo_model.topics,
+                    "homepage": repo_model.homepage,
+                    "trending_rank": repo_model.trending_rank,
+                }
+
+    return model_to_schema(item, raw_content)
 
 
 @router.post("/content/{id}/feedback", status_code=status.HTTP_201_CREATED)

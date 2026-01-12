@@ -139,3 +139,5 @@ class ContentItem(BaseSchema):
     # Raw content reference - stored as JSON in DB
     raw_content_type: str | None = PydanticField(None, description="Type of raw content (paper, repository, etc.)")
     raw_content_id: str | None = PydanticField(None, description="ID of raw content record")
+    # Full raw content details (only included in detail view)
+    raw_content: dict | None = PydanticField(None, description="Full raw content details (abstract, authors, stars, etc.)")
