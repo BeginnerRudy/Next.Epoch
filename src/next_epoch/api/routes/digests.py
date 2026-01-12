@@ -11,6 +11,7 @@ from next_epoch.schemas.digest import Digest, DigestSection, DigestStats, Create
 from next_epoch.schemas.enums import DigestType
 from next_epoch.schemas.pagination import Pagination, PaginatedResponse
 from next_epoch.schemas.base import generate_uuid7
+from next_epoch.tasks.digest import generate_digest
 from sqlalchemy import select, func
 
 router = APIRouter()
@@ -121,19 +122,16 @@ async def get_digest(
     return model_to_schema(model)
 
 
-@router.post("/digests", status_code=status.HTTP_202_ACCEPTED)
-async def create_digest(
+@router.post("/digests", status_code=status.HTTP_201_CREATED)
+async def create_digest_endpoint(
     request: CreateDigestRequest,
     _api_key: ApiKey,
     session: DbSession,
-) -> DigestJob:
-    """Trigger generation of a new digest (async)."""
-    # For MVP, we'll create a placeholder job
-    # In production, this would queue a background task
-    job_id = generate_uuid7()
+) -> Digest:
+    """Generate a new digest synchronously."""
+    now = datetime.utcnow()
 
     # Calculate default period based on digest type
-    now = datetime.utcnow()
     if request.type == DigestType.DAILY:
         period_start = request.period_start or (now - timedelta(days=1))
         period_end = request.period_end or now
@@ -144,13 +142,19 @@ async def create_digest(
         period_start = request.period_start or (now - timedelta(hours=6))
         period_end = request.period_end or now
 
-    # TODO: Queue actual digest generation task
-    # For now, return pending job status
-
-    return DigestJob(
-        job_id=job_id,
-        digest_id=None,  # Will be set when generation completes
-        status="pending",
-        created_at=now,
-        completed_at=None,
+    # Generate the digest
+    digest = await generate_digest(
+        session=session,
+        digest_type=request.type,
+        period_start=period_start,
+        period_end=period_end,
     )
+
+    if not digest:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No content found for the specified period",
+        )
+
+    await session.commit()
+    return model_to_schema(digest)
