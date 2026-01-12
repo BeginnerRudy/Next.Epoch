@@ -43,6 +43,10 @@ services:
       - NEXT_EPOCH_REDIS_URL=redis://redis:6379
       - NEXT_EPOCH_LLM_API_KEY=${OPENAI_API_KEY:-}
       - NEXT_EPOCH_DEBUG=false
+      # HTTP proxy for arXiv access in China (uses host machine's proxy via Docker networking)
+      - NEXT_EPOCH_HTTP_PROXY=${NEXT_EPOCH_HTTP_PROXY:-http://host.docker.internal:7897}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
     depends_on:
@@ -63,6 +67,9 @@ services:
       dockerfile: Dockerfile
     container_name: next-epoch-web
     environment:
+      # Internal API URL for server-side API proxy routes
+      - BACKEND_API_URL=http://api:8000
+      # Public URL (for client-side, not used with API routes)
       - NEXT_PUBLIC_API_URL=http://api:8000
     ports:
       - "3000:3000"

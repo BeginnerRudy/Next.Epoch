@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     novelty_enabled: bool = False
     recency_decay_hours: int = 168  # 7 days
 
+    # Network / Proxy
+    http_proxy: str | None = Field(
+        None, description="HTTP proxy URL for external requests (e.g., arXiv in China)"
+    )
+
     # Logging
     log_level: str = "INFO"
     log_format: Literal["json", "console"] = "console"

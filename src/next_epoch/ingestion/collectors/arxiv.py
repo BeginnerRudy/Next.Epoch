@@ -17,8 +17,8 @@ logger = structlog.get_logger()
 settings = get_settings()
 
 
-# arXiv API base URL
-ARXIV_API_URL = "http://export.arxiv.org/api/query"
+# arXiv API base URL (HTTPS required)
+ARXIV_API_URL = "https://export.arxiv.org/api/query"
 
 # arXiv ID pattern
 ARXIV_ID_PATTERN = re.compile(r"(\d{4}\.\d{4,5})(v\d+)?$")
@@ -140,7 +140,13 @@ class ArxivCollector(BaseCollector[Paper]):
     ):
         self.categories = categories or settings.arxiv_categories
         self.max_results = max_results or settings.arxiv_max_results
-        self.client = httpx.AsyncClient(timeout=30.0)
+
+        # Configure HTTP client with optional proxy for China network access
+        client_kwargs = {"timeout": 30.0}
+        if settings.http_proxy:
+            client_kwargs["proxy"] = settings.http_proxy
+            logger.info("arXiv collector using proxy", proxy=settings.http_proxy)
+        self.client = httpx.AsyncClient(**client_kwargs)
 
     async def close(self):
         """Close the HTTP client."""
