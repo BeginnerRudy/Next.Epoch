@@ -20,6 +20,9 @@ import {
   BookOpen,
   Loader2,
   Globe,
+  Rss,
+  Building2,
+  Newspaper,
 } from 'lucide-react';
 import { getContentItem } from '@/lib/api';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
@@ -95,7 +98,29 @@ export default function ContentDetailPage() {
 
   const isPaper = content.type === 'paper';
   const isRepo = content.type === 'repository';
+  const isArticle = content.type === 'article' || content.type === 'application' || content.type === 'case_study';
   const raw = content.raw_content;
+
+  // Get content type label for display
+  const getContentTypeLabel = (type: string): string => {
+    switch (type) {
+      case 'article': return 'News Article';
+      case 'application': return 'Product Launch';
+      case 'case_study': return 'Case Study';
+      default: return type;
+    }
+  };
+
+  // Get source display name
+  const getSourceDisplayName = (source: string): string => {
+    switch (source) {
+      case 'venturebeat': return 'VentureBeat';
+      case 'techcrunch': return 'TechCrunch';
+      case 'arxiv': return 'arXiv';
+      case 'github': return 'GitHub';
+      default: return source;
+    }
+  };
 
   // Get data from raw_content or fallback to top-level fields
   const abstract = raw?.abstract || content.abstract;
@@ -207,6 +232,33 @@ export default function ContentDetailPage() {
             </div>
           )}
 
+          {/* Article Info */}
+          {isArticle && (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4">
+              <div className="flex items-center gap-2 p-3 bg-indigo-50 rounded-lg">
+                <Rss className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <p className="text-sm font-bold text-indigo-900">{getContentTypeLabel(content.type)}</p>
+                  <p className="text-xs text-indigo-700">Content Type</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg">
+                <Building2 className="w-5 h-5 text-purple-600" />
+                <div>
+                  <p className="text-sm font-bold text-purple-900">{getSourceDisplayName(content.source)}</p>
+                  <p className="text-xs text-purple-700">Source</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+                <Calendar className="w-5 h-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-bold text-blue-900">{formatDate(content.published_at)}</p>
+                  <p className="text-xs text-blue-700">Published</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Categories */}
           {content.categories && content.categories.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap mb-4">
@@ -244,8 +296,8 @@ export default function ContentDetailPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
             >
-              {isPaper ? <BookOpen className="w-4 h-4" /> : <Code className="w-4 h-4" />}
-              {isPaper ? 'View on arXiv' : 'View on GitHub'}
+              {isPaper ? <BookOpen className="w-4 h-4" /> : isArticle ? <Newspaper className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+              {isPaper ? 'View on arXiv' : isArticle ? `Read on ${getSourceDisplayName(content.source)}` : 'View on GitHub'}
               <ExternalLink className="w-4 h-4" />
             </a>
             {isPaper && pdfUrl && (
@@ -293,6 +345,28 @@ export default function ContentDetailPage() {
             <h2 className="text-lg font-semibold text-gray-900">Description</h2>
           </div>
           <p className="text-gray-700 leading-relaxed">{description}</p>
+        </div>
+      )}
+
+      {/* Article Summary/Excerpt */}
+      {isArticle && (content.summary || description) && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Newspaper className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Article Summary</h2>
+          </div>
+          <p className="text-gray-700 leading-relaxed">{content.summary || description}</p>
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <a
+              href={content.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+            >
+              Read the full article on {getSourceDisplayName(content.source)}
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ExternalLink, Star, GitFork, Users } from 'lucide-react';
+import { ExternalLink, Star, GitFork, Users, Rss, Building2 } from 'lucide-react';
 import { ContentItem } from '@/types';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
 import { SourceBadge } from '@/components/ui/SourceBadge';
@@ -8,6 +8,16 @@ import { formatRelativeTime, truncate, formatNumber, formatDate } from '@/lib/ut
 interface ContentCardProps {
   item: ContentItem;
   showSummary?: boolean;
+}
+
+// Get content type label for display
+function getContentTypeLabel(type: string): string {
+  switch (type) {
+    case 'article': return 'News';
+    case 'application': return 'Product Launch';
+    case 'case_study': return 'Case Study';
+    default: return type;
+  }
 }
 
 export function ContentCard({ item, showSummary = true }: ContentCardProps) {
@@ -23,12 +33,26 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
     ? `Published: ${exactTime}`
     : `Discovered from GitHub Trending: ${exactTime}`;
 
+  // Get source link text
+  const getSourceLinkText = () => {
+    if (isPaper) return 'arXiv';
+    if (isRepo) return 'GitHub';
+    if (item.source === 'venturebeat') return 'VentureBeat';
+    if (item.source === 'techcrunch') return 'TechCrunch';
+    return 'Read Article';
+  };
+
   return (
     <article className="content-card bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <SourceBadge source={item.source} size="sm" />
+          {isArticle && (
+            <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
+              {getContentTypeLabel(item.type)}
+            </span>
+          )}
           <span className="relative group">
             <span className="text-sm text-gray-500 cursor-help border-b border-dotted border-gray-400">
               {formatRelativeTime(item.published_at)}
@@ -93,6 +117,22 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
         </div>
       )}
 
+      {/* Article-specific info */}
+      {isArticle && (
+        <div className="flex items-center gap-3 text-sm text-gray-500 mb-3">
+          <span className="flex items-center gap-1">
+            <Rss className="w-4 h-4 text-indigo-500" />
+            <span className="text-indigo-600 font-medium">AI News</span>
+          </span>
+          {item.categories && item.categories.length > 0 && (
+            <span className="flex items-center gap-1">
+              <Building2 className="w-4 h-4" />
+              {item.categories[0]}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Tags */}
       {item.tags && item.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-3">
@@ -124,7 +164,7 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
         >
-          <span>Source</span>
+          <span>{getSourceLinkText()}</span>
           <ExternalLink className="w-3.5 h-3.5" />
         </a>
       </div>
