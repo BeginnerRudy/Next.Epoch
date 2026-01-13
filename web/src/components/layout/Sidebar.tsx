@@ -9,6 +9,7 @@ import {
   Newspaper,
   Settings,
   Tag,
+  Rss,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -16,6 +17,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Papers', href: '/content?type=paper', icon: FileText, queryKey: 'type', queryValue: 'paper' },
   { name: 'Repositories', href: '/content?type=repository', icon: GitBranch, queryKey: 'type', queryValue: 'repository' },
+  { name: 'AI News', href: '/content?type=article', icon: Rss, queryKey: 'type', queryValue: 'article' },
   { name: 'Digests', href: '/digests', icon: Newspaper },
   { name: 'Fields', href: '/fields', icon: Tag },
 ];

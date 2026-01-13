@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Calendar, FileText, Clock, ChevronRight, Loader2 } from 'lucide-react';
+import { Calendar, FileText, Clock, ChevronRight, Loader2, GitBranch, Rss } from 'lucide-react';
 import { getDigests } from '@/lib/api';
 import { formatDate, formatRelativeTime } from '@/lib/utils';
 import { Digest } from '@/types';
@@ -43,8 +43,18 @@ function DigestCard({ digest }: { digest: Digest }) {
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <span className="flex items-center gap-1">
               <FileText className="w-4 h-4" />
-              {digest.stats.total_items} items
+              {digest.stats.papers_count} papers
             </span>
+            <span className="flex items-center gap-1">
+              <GitBranch className="w-4 h-4" />
+              {digest.stats.repos_count} repos
+            </span>
+            {digest.stats.articles_count > 0 && (
+              <span className="flex items-center gap-1">
+                <Rss className="w-4 h-4" />
+                {digest.stats.articles_count} news
+              </span>
+            )}
             <span className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
               {formatDate(digest.period_start)} - {formatDate(digest.period_end)}

@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, FileText, Clock, ExternalLink, Loader2, Sparkles, BookOpen, Code } from 'lucide-react';
+import { ArrowLeft, Calendar, FileText, Clock, ExternalLink, Loader2, Sparkles, BookOpen, Code, Rss } from 'lucide-react';
 import { getDigest, getContentItem } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 import { Digest, DigestSection, ContentItem } from '@/types';
@@ -73,8 +73,11 @@ function DigestItemCard({ itemId }: { itemId: string }) {
 }
 
 function DigestSectionComponent({ section }: { section: DigestSection }) {
-  const sectionIcon = section.name.toLowerCase().includes('paper')
+  const sectionName = section.name.toLowerCase();
+  const sectionIcon = sectionName.includes('paper')
     ? <BookOpen className="w-5 h-5 text-blue-600" />
+    : sectionName.includes('news') || sectionName.includes('article')
+    ? <Rss className="w-5 h-5 text-indigo-600" />
     : <Code className="w-5 h-5 text-purple-600" />;
 
   return (
