@@ -23,7 +23,6 @@ import {
   Rss,
   Building2,
   Newspaper,
-  Twitter,
   Heart,
   Repeat2,
   MessageCircle,
@@ -31,6 +30,7 @@ import {
 import { getContentItem } from '@/lib/api';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
 import { SourceBadge } from '@/components/ui/SourceBadge';
+import { XIcon } from '@/components/ui/XIcon';
 import { formatDate, formatNumber } from '@/lib/utils';
 import { ContentItem } from '@/types';
 
@@ -112,7 +112,7 @@ export default function ContentDetailPage() {
       case 'article': return 'News Article';
       case 'application': return 'Product Launch';
       case 'case_study': return 'Case Study';
-      case 'social': return 'Tweet';
+      case 'social': return 'X Post';
       default: return type;
     }
   };
@@ -124,7 +124,7 @@ export default function ContentDetailPage() {
       case 'techcrunch': return 'TechCrunch';
       case 'arxiv': return 'arXiv';
       case 'github': return 'GitHub';
-      case 'twitter': return 'X/Twitter';
+      case 'twitter': return 'X';
       default: return source;
     }
   };
@@ -266,14 +266,14 @@ export default function ContentDetailPage() {
             </div>
           )}
 
-          {/* Tweet Info */}
+          {/* X Post Info */}
           {isTweet && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="flex items-center gap-2 p-3 bg-sky-50 rounded-lg">
-                <Twitter className="w-5 h-5 text-sky-600" />
+              <div className="flex items-center gap-2 p-3 bg-neutral-100 rounded-lg">
+                <XIcon className="w-5 h-5 text-neutral-900" />
                 <div>
-                  <p className="text-sm font-bold text-sky-900">{getContentTypeLabel(content.type)}</p>
-                  <p className="text-xs text-sky-700">Content Type</p>
+                  <p className="text-sm font-bold text-neutral-900">{getContentTypeLabel(content.type)}</p>
+                  <p className="text-xs text-neutral-600">Content Type</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 p-3 bg-pink-50 rounded-lg">
@@ -287,7 +287,7 @@ export default function ContentDetailPage() {
                 <Repeat2 className="w-5 h-5 text-green-600" />
                 <div>
                   <p className="text-lg font-bold text-green-900">{formatNumber(content.retweets || 0)}</p>
-                  <p className="text-xs text-green-700">Retweets</p>
+                  <p className="text-xs text-green-700">Reposts</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
@@ -337,8 +337,8 @@ export default function ContentDetailPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
             >
-              {isPaper ? <BookOpen className="w-4 h-4" /> : isArticle ? <Newspaper className="w-4 h-4" /> : isTweet ? <Twitter className="w-4 h-4" /> : <Code className="w-4 h-4" />}
-              {isPaper ? 'View on arXiv' : isArticle ? `Read on ${getSourceDisplayName(content.source)}` : isTweet ? 'View on X/Twitter' : 'View on GitHub'}
+              {isPaper ? <BookOpen className="w-4 h-4" /> : isArticle ? <Newspaper className="w-4 h-4" /> : isTweet ? <XIcon className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+              {isPaper ? 'View on arXiv' : isArticle ? `Read on ${getSourceDisplayName(content.source)}` : isTweet ? 'View on X' : 'View on GitHub'}
               <ExternalLink className="w-4 h-4" />
             </a>
             {isPaper && pdfUrl && (
@@ -411,14 +411,14 @@ export default function ContentDetailPage() {
         </div>
       )}
 
-      {/* Tweet Content */}
+      {/* X Post Content */}
       {isTweet && content.summary && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Twitter className="w-5 h-5 text-sky-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Tweet Content</h2>
+            <XIcon className="w-5 h-5 text-neutral-900" />
+            <h2 className="text-lg font-semibold text-gray-900">Post Content</h2>
           </div>
-          <div className="bg-sky-50 rounded-lg p-4 border-l-4 border-sky-500">
+          <div className="bg-neutral-50 rounded-lg p-4 border-l-4 border-neutral-400">
             <p className="text-gray-800 leading-relaxed whitespace-pre-line text-lg">{content.summary}</p>
           </div>
           <div className="mt-4 pt-4 border-t border-gray-100">
@@ -428,7 +428,7 @@ export default function ContentDetailPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
             >
-              View original tweet on X/Twitter
+              View original post on X
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>

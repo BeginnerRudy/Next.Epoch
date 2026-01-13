@@ -1,10 +1,11 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, FileText, GitBranch, RefreshCw, Loader2, Newspaper, Twitter } from 'lucide-react';
+import { TrendingUp, FileText, GitBranch, RefreshCw, Loader2, Newspaper } from 'lucide-react';
 import { getContent } from '@/lib/api';
 import { ContentList } from '@/components/content/ContentList';
 import { Button } from '@/components/ui/Button';
+import { XIcon } from '@/components/ui/XIcon';
 
 function StatsSkeleton() {
   return (
@@ -87,10 +88,10 @@ export default function DashboardPage() {
       color: 'text-indigo-600 bg-indigo-100',
     },
     {
-      label: 'Tweets',
+      label: 'X Posts',
       value: totalTweets,
-      icon: Twitter,
-      color: 'text-sky-600 bg-sky-100',
+      icon: XIcon,
+      color: 'text-neutral-900 bg-neutral-100',
     },
     {
       label: 'High Impact',

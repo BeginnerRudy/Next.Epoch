@@ -18,10 +18,12 @@ logger = structlog.get_logger()
 settings = get_settings()
 
 # Nitter instances (Twitter frontend that doesn't require API)
+# These are known working instances as of 2026
 NITTER_INSTANCES = [
+    "https://nitter.net",
+    "https://nitter.cz",
+    "https://nitter.unixfox.eu",
     "https://nitter.privacydev.net",
-    "https://nitter.poast.org",
-    "https://nitter.woodland.cafe",
 ]
 
 # AI influencers and researchers to follow
@@ -153,6 +155,12 @@ class TwitterCollector(BaseCollector[Tweet]):
         self.influencers = influencers or AI_INFLUENCERS
         self.filter_ai_relevant = filter_ai_relevant
         self.nitter_instance = NITTER_INSTANCES[0]
+
+        # Configure HTTP proxy if available (for China network access)
+        proxy = settings.http_proxy
+        if proxy:
+            logger.info("Twitter collector using proxy", proxy=proxy)
+
         self.client = httpx.AsyncClient(
             timeout=30.0,
             headers={
@@ -160,6 +168,7 @@ class TwitterCollector(BaseCollector[Tweet]):
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             },
             follow_redirects=True,
+            proxy=proxy,
         )
 
     async def close(self):

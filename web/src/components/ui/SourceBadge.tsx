@@ -20,7 +20,7 @@ export function SourceBadge({ source, size = 'md' }: SourceBadgeProps) {
       case 'techcrunch':
         return { label: 'TechCrunch', color: 'bg-green-100 text-green-700 border-green-200' };
       case 'twitter':
-        return { label: 'X/Twitter', color: 'bg-sky-100 text-sky-700 border-sky-200' };
+        return { label: 'X', color: 'bg-neutral-100 text-neutral-900 border-neutral-300' };
       default:
         return { label: source, color: 'bg-blue-100 text-blue-700 border-blue-200' };
     }

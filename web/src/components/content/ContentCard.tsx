@@ -1,8 +1,9 @@
 import Link from 'next/link';
-import { ExternalLink, Star, GitFork, Users, Rss, Building2, Twitter, Heart, Repeat2 } from 'lucide-react';
+import { ExternalLink, Star, GitFork, Users, Rss, Building2, Heart, Repeat2 } from 'lucide-react';
 import { ContentItem } from '@/types';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
 import { SourceBadge } from '@/components/ui/SourceBadge';
+import { XIcon } from '@/components/ui/XIcon';
 import { formatRelativeTime, truncate, formatNumber, formatDate } from '@/lib/utils';
 
 interface ContentCardProps {
@@ -16,7 +17,7 @@ function getContentTypeLabel(type: string): string {
     case 'article': return 'News';
     case 'application': return 'Product Launch';
     case 'case_study': return 'Case Study';
-    case 'social': return 'Tweet';
+    case 'social': return 'X Post';
     default: return type;
   }
 }
@@ -55,7 +56,7 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
           <SourceBadge source={item.source} size="sm" />
           {(isArticle || isTweet) && (
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-              isTweet ? 'bg-sky-100 text-sky-700' : 'bg-indigo-100 text-indigo-700'
+              isTweet ? 'bg-neutral-200 text-neutral-900' : 'bg-indigo-100 text-indigo-700'
             }`}>
               {getContentTypeLabel(item.type)}
             </span>
@@ -140,12 +141,12 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
         </div>
       )}
 
-      {/* Tweet-specific info */}
+      {/* X Post-specific info */}
       {isTweet && (
         <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
           <span className="flex items-center gap-1">
-            <Twitter className="w-4 h-4 text-sky-500" />
-            <span className="text-sky-600 font-medium">AI Influencer</span>
+            <XIcon className="w-4 h-4 text-neutral-900" />
+            <span className="text-neutral-700 font-medium">AI Influencer</span>
           </span>
           {item.likes !== undefined && item.likes > 0 && (
             <span className="flex items-center gap-1">
