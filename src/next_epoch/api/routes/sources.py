@@ -51,6 +51,14 @@ DEFAULT_SOURCES = [
         "refresh_interval": 120,
         "status": "active",
     },
+    {
+        "id": "twitter",
+        "type": "twitter",
+        "name": "Twitter/X AI Influencers",
+        "enabled": True,
+        "refresh_interval": 60,  # 1 hour for social
+        "status": "active",
+    },
 ]
 
 
@@ -171,6 +179,7 @@ async def refresh_source(
         "github": SourceType.GITHUB,
         "venturebeat": SourceType.VENTUREBEAT,
         "techcrunch": SourceType.TECHCRUNCH,
+        "twitter": SourceType.TWITTER,
     }
     source_type = source_type_map.get(id)
     if not source_type:

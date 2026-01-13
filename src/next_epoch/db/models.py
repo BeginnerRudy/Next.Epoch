@@ -152,6 +152,33 @@ class ArticleModel(Base):
     )
 
 
+class TweetModel(Base):
+    """Tweet table (raw content from Twitter/X)."""
+
+    __tablename__ = "tweets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="twitter")
+    external_id: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    canonical_ref: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    username: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    url: Mapped[str] = mapped_column(String(2048), nullable=False)
+    published_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    likes: Mapped[int] = mapped_column(Integer, default=0)
+    retweets: Mapped[int] = mapped_column(Integer, default=0)
+    replies: Mapped[int] = mapped_column(Integer, default=0)
+    media_urls: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    is_thread: Mapped[bool] = mapped_column(Boolean, default=False)
+    tags: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+
+    __table_args__ = (
+        Index("ix_tweets_published_at_desc", published_at.desc()),
+    )
+
+
 class TaxonomyFieldModel(Base):
     """Field taxonomy table."""
 

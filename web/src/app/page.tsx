@@ -1,15 +1,15 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, FileText, GitBranch, RefreshCw, Loader2, Newspaper } from 'lucide-react';
+import { TrendingUp, FileText, GitBranch, RefreshCw, Loader2, Newspaper, Twitter } from 'lucide-react';
 import { getContent } from '@/lib/api';
 import { ContentList } from '@/components/content/ContentList';
 import { Button } from '@/components/ui/Button';
 
 function StatsSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {[...Array(4)].map((_, i) => (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      {[...Array(5)].map((_, i) => (
         <div
           key={i}
           className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4 animate-pulse"
@@ -52,22 +52,30 @@ export default function DashboardPage() {
     retry: false,
   });
 
+  // Fetch total count for tweets
+  const { data: tweetsData } = useQuery({
+    queryKey: ['content', 'tweets-count'],
+    queryFn: () => getContent({ type: 'social', per_page: 1 }),
+    retry: false,
+  });
+
   const items = contentData?.data ?? [];
   const isApiAvailable = !!contentData;
   const totalPapers = papersData?.pagination?.total_items ?? 0;
   const totalRepos = reposData?.pagination?.total_items ?? 0;
   const totalNews = newsData?.pagination?.total_items ?? 0;
+  const totalTweets = tweetsData?.pagination?.total_items ?? 0;
   const highImpactCount = items.filter((i) => i.frontier_score >= 0.7).length;
 
   const stats = [
     {
-      label: 'Total Papers',
+      label: 'Papers',
       value: totalPapers,
       icon: FileText,
       color: 'text-blue-600 bg-blue-100',
     },
     {
-      label: 'Trending Repos',
+      label: 'Repos',
       value: totalRepos,
       icon: GitBranch,
       color: 'text-purple-600 bg-purple-100',
@@ -77,6 +85,12 @@ export default function DashboardPage() {
       value: totalNews,
       icon: Newspaper,
       color: 'text-indigo-600 bg-indigo-100',
+    },
+    {
+      label: 'Tweets',
+      value: totalTweets,
+      icon: Twitter,
+      color: 'text-sky-600 bg-sky-100',
     },
     {
       label: 'High Impact',
@@ -94,7 +108,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 mt-1">
             {isApiAvailable
-              ? 'Latest AI research, trending repositories, and news'
+              ? 'Latest AI research, repos, news, and influencer tweets'
               : 'Connecting to backend...'}
           </p>
         </div>
@@ -116,7 +130,7 @@ export default function DashboardPage() {
       {isLoading ? (
         <StatsSkeleton />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {stats.map((stat) => (
             <div
               key={stat.label}

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ExternalLink, Star, GitFork, Users, Rss, Building2 } from 'lucide-react';
+import { ExternalLink, Star, GitFork, Users, Rss, Building2, Twitter, Heart, Repeat2 } from 'lucide-react';
 import { ContentItem } from '@/types';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
 import { SourceBadge } from '@/components/ui/SourceBadge';
@@ -16,6 +16,7 @@ function getContentTypeLabel(type: string): string {
     case 'article': return 'News';
     case 'application': return 'Product Launch';
     case 'case_study': return 'Case Study';
+    case 'social': return 'Tweet';
     default: return type;
   }
 }
@@ -24,6 +25,7 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
   const isPaper = item.type === 'paper';
   const isRepo = item.type === 'repository';
   const isArticle = item.type === 'article' || item.type === 'application' || item.type === 'case_study';
+  const isTweet = item.type === 'social';
 
   // Tooltip text explaining what the time means
   const exactTime = formatDate(item.published_at);
@@ -31,12 +33,15 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
     ? `Published: ${exactTime}`
     : isArticle
     ? `Published: ${exactTime}`
+    : isTweet
+    ? `Posted: ${exactTime}`
     : `Discovered from GitHub Trending: ${exactTime}`;
 
   // Get source link text
   const getSourceLinkText = () => {
     if (isPaper) return 'arXiv';
     if (isRepo) return 'GitHub';
+    if (isTweet) return 'View on X';
     if (item.source === 'venturebeat') return 'VentureBeat';
     if (item.source === 'techcrunch') return 'TechCrunch';
     return 'Read Article';
@@ -48,8 +53,10 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="flex items-center gap-2">
           <SourceBadge source={item.source} size="sm" />
-          {isArticle && (
-            <span className="text-xs px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full font-medium">
+          {(isArticle || isTweet) && (
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+              isTweet ? 'bg-sky-100 text-sky-700' : 'bg-indigo-100 text-indigo-700'
+            }`}>
               {getContentTypeLabel(item.type)}
             </span>
           )}
@@ -128,6 +135,28 @@ export function ContentCard({ item, showSummary = true }: ContentCardProps) {
             <span className="flex items-center gap-1">
               <Building2 className="w-4 h-4" />
               {item.categories[0]}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Tweet-specific info */}
+      {isTweet && (
+        <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
+          <span className="flex items-center gap-1">
+            <Twitter className="w-4 h-4 text-sky-500" />
+            <span className="text-sky-600 font-medium">AI Influencer</span>
+          </span>
+          {item.likes !== undefined && item.likes > 0 && (
+            <span className="flex items-center gap-1">
+              <Heart className="w-4 h-4 text-pink-500" />
+              {formatNumber(item.likes)}
+            </span>
+          )}
+          {item.retweets !== undefined && item.retweets > 0 && (
+            <span className="flex items-center gap-1">
+              <Repeat2 className="w-4 h-4 text-green-500" />
+              {formatNumber(item.retweets)}
             </span>
           )}
         </div>

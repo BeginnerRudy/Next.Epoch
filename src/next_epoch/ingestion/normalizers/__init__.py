@@ -5,6 +5,7 @@ from next_epoch.ingestion.normalizers.content import (
     normalize_paper,
     normalize_repository,
     normalize_article,
+    normalize_tweet,
 )
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "normalize_paper",
     "normalize_repository",
     "normalize_article",
+    "normalize_tweet",
 ]

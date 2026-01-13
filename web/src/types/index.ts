@@ -1,7 +1,7 @@
 // Content types matching backend schemas
 
 export type SourceType = 'arxiv' | 'github' | 'github_trending' | 'hacker_news' | 'twitter' | 'rss' | 'venturebeat' | 'techcrunch';
-export type ContentType = 'paper' | 'repository' | 'article' | 'discussion' | 'release' | 'application' | 'case_study';
+export type ContentType = 'paper' | 'repository' | 'article' | 'discussion' | 'release' | 'application' | 'case_study' | 'social';
 export type DigestType = 'daily' | 'weekly' | 'field';
 
 export interface Author {
@@ -71,6 +71,11 @@ export interface ContentItem {
   stars?: number;
   forks?: number;
   topics?: string[];
+  // Tweet fields
+  likes?: number;
+  retweets?: number;
+  replies?: number;
+  username?: string;
 }
 
 export interface Field {

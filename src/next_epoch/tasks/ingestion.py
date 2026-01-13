@@ -11,6 +11,7 @@ from next_epoch.db.models import (
     PaperModel,
     ProcessingRunModel,
     RepositoryModel,
+    TweetModel,
 )
 from next_epoch.db.repositories import (
     ContentItemRepository,
@@ -19,11 +20,12 @@ from next_epoch.db.repositories import (
     RepositoryRepository,
 )
 from next_epoch.db.session import get_session_context
-from next_epoch.ingestion.collectors import AINewsCollector, ArxivCollector, GitHubTrendingCollector
+from next_epoch.ingestion.collectors import AINewsCollector, ArxivCollector, GitHubTrendingCollector, TwitterCollector
 from next_epoch.ingestion.normalizers import (
     normalize_article,
     normalize_paper,
     normalize_repository,
+    normalize_tweet,
 )
 from next_epoch.intelligence.scorer import update_content_scores
 from next_epoch.schemas.enums import RunType, SourceType
@@ -67,12 +69,14 @@ class IngestionService:
         self.arxiv_collector = ArxivCollector()
         self.github_collector = GitHubTrendingCollector()
         self.news_collector = AINewsCollector()
+        self.twitter_collector = TwitterCollector()
 
     async def close(self):
         """Close collectors."""
         await self.arxiv_collector.close()
         await self.github_collector.close()
         await self.news_collector.close()
+        await self.twitter_collector.close()
 
     async def ingest_arxiv(self, max_results: int | None = None) -> IngestionStats:
         """Ingest papers from arXiv.
@@ -384,6 +388,124 @@ class IngestionService:
 
         return stats
 
+    async def ingest_twitter(self) -> IngestionStats:
+        """Ingest tweets from AI influencers on Twitter/X.
+
+        Returns:
+            IngestionStats with results
+        """
+        stats = IngestionStats(source="twitter")
+
+        try:
+            # Fetch tweets from influencers
+            logger.info("Starting Twitter ingestion")
+            from next_epoch.schemas.content import Tweet as TweetSchema
+            tweets = await self.twitter_collector.collect()
+            stats.items_fetched = len(tweets)
+
+            async with get_session_context() as session:
+                content_repo = ContentItemRepository(session)
+
+                for tweet in tweets:
+                    try:
+                        # Check for duplicate
+                        existing = await content_repo.get_by_canonical_ref(tweet.canonical_ref)
+                        if existing:
+                            stats.items_skipped += 1
+                            continue
+
+                        # Create Tweet schema for normalization
+                        tweet_schema = TweetSchema(
+                            id=tweet.external_id,
+                            external_id=tweet.external_id,
+                            canonical_ref=tweet.canonical_ref,
+                            username=tweet.username,
+                            display_name=tweet.display_name,
+                            content=tweet.content,
+                            url=tweet.url,
+                            published_at=tweet.published_at,
+                            likes=tweet.likes,
+                            retweets=tweet.retweets,
+                            replies=tweet.replies,
+                            media_urls=tweet.media_urls,
+                        )
+
+                        # Normalize to ContentItem
+                        content = normalize_tweet(tweet_schema)
+
+                        # Score the content
+                        scored_content = update_content_scores(content, tweet_schema)
+
+                        # Filter by relevance threshold (lower for social content)
+                        social_threshold = max(settings.relevance_threshold - 0.15, 0.15)
+                        if scored_content.relevance_score < social_threshold:
+                            stats.items_filtered += 1
+                            continue
+
+                        # Store raw tweet
+                        tweet_model = TweetModel(
+                            id=tweet_schema.id,
+                            source="twitter",
+                            external_id=tweet.external_id,
+                            canonical_ref=tweet.canonical_ref,
+                            username=tweet.username,
+                            display_name=tweet.display_name,
+                            content=tweet.content,
+                            url=tweet.url,
+                            published_at=tweet.published_at,
+                            likes=tweet.likes,
+                            retweets=tweet.retweets,
+                            replies=tweet.replies,
+                            media_urls=tweet.media_urls,
+                            tags=[],
+                        )
+                        session.add(tweet_model)
+
+                        # Store content item
+                        content_model = ContentItemModel(
+                            id=scored_content.id,
+                            type=scored_content.type.value,
+                            source=scored_content.source.value,
+                            canonical_ref=tweet.canonical_ref,
+                            title=scored_content.title,
+                            summary=scored_content.summary,
+                            url=scored_content.url,
+                            relevance_score=scored_content.relevance_score,
+                            importance_score=scored_content.importance_score,
+                            novelty_score=scored_content.novelty_score,
+                            frontier_score=scored_content.frontier_score,
+                            score_breakdown=scored_content.score_breakdown.model_dump(mode='json') if scored_content.score_breakdown else None,
+                            signals=[s.model_dump(mode='json') for s in scored_content.signals],
+                            provenance=scored_content.provenance.model_dump(mode='json') if scored_content.provenance else None,
+                            tags=scored_content.tags,
+                            categories=scored_content.categories,
+                            published_at=scored_content.published_at,
+                            processed_at=scored_content.processed_at,
+                            raw_content_type="tweet",
+                            raw_content_id=tweet_schema.id,
+                        )
+                        session.add(content_model)
+
+                        stats.items_new += 1
+
+                    except Exception as e:
+                        logger.error("Failed to process tweet", username=tweet.username, error=str(e))
+                        stats.errors.append(f"Tweet @{tweet.username}: {str(e)}")
+
+            logger.info(
+                "Twitter ingestion complete",
+                fetched=stats.items_fetched,
+                new=stats.items_new,
+                skipped=stats.items_skipped,
+                filtered=stats.items_filtered,
+            )
+
+        except Exception as e:
+            logger.error("Twitter ingestion failed", error=str(e))
+            stats.errors.append(str(e))
+
+        return stats
+
     async def ingest_all(self) -> dict[str, IngestionStats]:
         """Ingest from all sources.
 
@@ -400,6 +522,9 @@ class IngestionService:
 
         # Ingest VentureBeat AI news
         results["venturebeat"] = await self.ingest_news(SourceType.VENTUREBEAT)
+
+        # Ingest Twitter/X
+        results["twitter"] = await self.ingest_twitter()
 
         return results
 
@@ -437,6 +562,9 @@ async def run_ingestion(source: SourceType | None = None) -> ProcessingRunModel:
             elif source == SourceType.TECHCRUNCH:
                 stats = await service.ingest_news(SourceType.TECHCRUNCH)
                 all_stats = {"techcrunch": stats.to_dict()}
+            elif source == SourceType.TWITTER:
+                stats = await service.ingest_twitter()
+                all_stats = {"twitter": stats.to_dict()}
             else:
                 results = await service.ingest_all()
                 all_stats = {k: v.to_dict() for k, v in results.items()}

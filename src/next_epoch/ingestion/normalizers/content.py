@@ -10,6 +10,7 @@ from next_epoch.schemas.content import (
     ContentProvenance,
     Paper,
     Repository,
+    Tweet,
 )
 from next_epoch.schemas.enums import ContentType, SourceType
 
@@ -168,7 +169,48 @@ def _determine_article_type(article: Article) -> ContentType:
     return ContentType.ARTICLE
 
 
-def normalize_content(raw_content: Paper | Repository | Article) -> ContentItem:
+def normalize_tweet(tweet: Tweet) -> ContentItem:
+    """Normalize a Tweet into a ContentItem."""
+    # Build provenance
+    provenance = ContentProvenance(
+        fetched_at=tweet.created_at or datetime.utcnow(),
+        fetched_from=f"https://twitter.com/{tweet.username}",
+        parser="twitter_normalizer",
+        parser_version=PARSER_VERSION,
+        content_hash=None,
+        language="en",
+    )
+
+    # Use the tweet content as summary (it's short already)
+    summary = tweet.content
+
+    # Build title from username and content preview
+    content_preview = tweet.content[:80] + "..." if len(tweet.content) > 80 else tweet.content
+    title = f"@{tweet.username}: {content_preview}"
+
+    return ContentItem(
+        type=ContentType.SOCIAL,
+        source=SourceType.TWITTER,
+        title=title,
+        summary=summary,
+        url=tweet.url,
+        relevance_score=0.0,  # Will be set by scorer
+        importance_score=0.0,
+        novelty_score=None,
+        frontier_score=None,
+        tags=tweet.tags,
+        categories=["ai-social"],  # Category for social content
+        published_at=tweet.published_at,
+        processed_at=datetime.utcnow(),
+        fields=[],
+        signals=[],
+        provenance=provenance,
+        raw_content_type="tweet",
+        raw_content_id=tweet.id,
+    )
+
+
+def normalize_content(raw_content: Paper | Repository | Article | Tweet) -> ContentItem:
     """Normalize any raw content type to ContentItem."""
     if isinstance(raw_content, Paper):
         return normalize_paper(raw_content)
@@ -176,5 +218,7 @@ def normalize_content(raw_content: Paper | Repository | Article) -> ContentItem:
         return normalize_repository(raw_content)
     elif isinstance(raw_content, Article):
         return normalize_article(raw_content)
+    elif isinstance(raw_content, Tweet):
+        return normalize_tweet(raw_content)
     else:
         raise ValueError(f"Unknown content type: {type(raw_content)}")

@@ -23,6 +23,10 @@ import {
   Rss,
   Building2,
   Newspaper,
+  Twitter,
+  Heart,
+  Repeat2,
+  MessageCircle,
 } from 'lucide-react';
 import { getContentItem } from '@/lib/api';
 import { ScoreBadge } from '@/components/ui/ScoreBadge';
@@ -99,6 +103,7 @@ export default function ContentDetailPage() {
   const isPaper = content.type === 'paper';
   const isRepo = content.type === 'repository';
   const isArticle = content.type === 'article' || content.type === 'application' || content.type === 'case_study';
+  const isTweet = content.type === 'social';
   const raw = content.raw_content;
 
   // Get content type label for display
@@ -107,6 +112,7 @@ export default function ContentDetailPage() {
       case 'article': return 'News Article';
       case 'application': return 'Product Launch';
       case 'case_study': return 'Case Study';
+      case 'social': return 'Tweet';
       default: return type;
     }
   };
@@ -118,6 +124,7 @@ export default function ContentDetailPage() {
       case 'techcrunch': return 'TechCrunch';
       case 'arxiv': return 'arXiv';
       case 'github': return 'GitHub';
+      case 'twitter': return 'X/Twitter';
       default: return source;
     }
   };
@@ -259,6 +266,40 @@ export default function ContentDetailPage() {
             </div>
           )}
 
+          {/* Tweet Info */}
+          {isTweet && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="flex items-center gap-2 p-3 bg-sky-50 rounded-lg">
+                <Twitter className="w-5 h-5 text-sky-600" />
+                <div>
+                  <p className="text-sm font-bold text-sky-900">{getContentTypeLabel(content.type)}</p>
+                  <p className="text-xs text-sky-700">Content Type</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-pink-50 rounded-lg">
+                <Heart className="w-5 h-5 text-pink-600" />
+                <div>
+                  <p className="text-lg font-bold text-pink-900">{formatNumber(content.likes || 0)}</p>
+                  <p className="text-xs text-pink-700">Likes</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                <Repeat2 className="w-5 h-5 text-green-600" />
+                <div>
+                  <p className="text-lg font-bold text-green-900">{formatNumber(content.retweets || 0)}</p>
+                  <p className="text-xs text-green-700">Retweets</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg">
+                <MessageCircle className="w-5 h-5 text-blue-600" />
+                <div>
+                  <p className="text-lg font-bold text-blue-900">{formatNumber(content.replies || 0)}</p>
+                  <p className="text-xs text-blue-700">Replies</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Categories */}
           {content.categories && content.categories.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap mb-4">
@@ -296,8 +337,8 @@ export default function ContentDetailPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
             >
-              {isPaper ? <BookOpen className="w-4 h-4" /> : isArticle ? <Newspaper className="w-4 h-4" /> : <Code className="w-4 h-4" />}
-              {isPaper ? 'View on arXiv' : isArticle ? `Read on ${getSourceDisplayName(content.source)}` : 'View on GitHub'}
+              {isPaper ? <BookOpen className="w-4 h-4" /> : isArticle ? <Newspaper className="w-4 h-4" /> : isTweet ? <Twitter className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+              {isPaper ? 'View on arXiv' : isArticle ? `Read on ${getSourceDisplayName(content.source)}` : isTweet ? 'View on X/Twitter' : 'View on GitHub'}
               <ExternalLink className="w-4 h-4" />
             </a>
             {isPaper && pdfUrl && (
@@ -364,6 +405,30 @@ export default function ContentDetailPage() {
               className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
             >
               Read the full article on {getSourceDisplayName(content.source)}
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* Tweet Content */}
+      {isTweet && content.summary && (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Twitter className="w-5 h-5 text-sky-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Tweet Content</h2>
+          </div>
+          <div className="bg-sky-50 rounded-lg p-4 border-l-4 border-sky-500">
+            <p className="text-gray-800 leading-relaxed whitespace-pre-line text-lg">{content.summary}</p>
+          </div>
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <a
+              href={content.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-primary-600 hover:text-primary-700 font-medium"
+            >
+              View original tweet on X/Twitter
               <ExternalLink className="w-4 h-4" />
             </a>
           </div>

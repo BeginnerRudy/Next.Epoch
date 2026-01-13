@@ -127,6 +127,27 @@ class Application(BaseSchema):
     created_at: datetime = PydanticField(default_factory=datetime.utcnow)
 
 
+class Tweet(BaseSchema):
+    """Tweet from Twitter/X."""
+
+    id: str = PydanticField(default_factory=generate_uuid7)
+    source: SourceType = SourceType.TWITTER
+    external_id: str = PydanticField(..., description="Twitter tweet ID")
+    canonical_ref: str = PydanticField(..., description="Stable dedupe key (e.g., 'twitter:username/tweet_id')")
+    username: str = PydanticField(..., description="Twitter username without @")
+    display_name: str = PydanticField(..., description="User display name")
+    content: str = PydanticField(..., description="Tweet text content")
+    url: str
+    published_at: datetime
+    likes: int = 0
+    retweets: int = 0
+    replies: int = 0
+    media_urls: list[str] = PydanticField(default_factory=list, description="URLs to attached media")
+    is_thread: bool = PydanticField(False, description="Whether this is part of a thread")
+    tags: list[str] = PydanticField(default_factory=list)
+    created_at: datetime = PydanticField(default_factory=datetime.utcnow)
+
+
 class FieldRef(BaseSchema):
     """Reference to a field with confidence score."""
 
